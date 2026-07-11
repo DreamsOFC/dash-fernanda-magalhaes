@@ -187,6 +187,37 @@ def main():
     else:
         print("  Nenhuma conta de Instagram vinculada encontrada pelo token.")
 
+    # 5) Cobertura: ativos x que têm gasto (por nível), p/ achar o que some
+    print("\n== Cobertura de ativos (last_30d) ==")
+    def ids_ativos(edge):
+        rows = graph_get(f"{AD_ACCOUNT}/{edge}",
+                         {"fields": "id", "effective_status": '["ACTIVE"]', "limit": 200})
+        return set(r["id"] for r in rows)
+    for edge, level, idk in [("campaigns", "campaign", "campaign_id"),
+                             ("adsets", "adset", "adset_id"), ("ads", "ad", "ad_id")]:
+        aset = ids_ativos(edge)
+        rows = graph_get(f"{AD_ACCOUNT}/insights",
+                         {"level": level, "date_preset": "last_30d",
+                          "fields": f"spend,{idk}", "limit": 500})
+        com_gasto = [r for r in rows if float(r.get("spend") or 0) > 0]
+        ativos_gasto = [r for r in com_gasto if r.get(idk) in aset]
+        print(f"  {level}: ativos={len(aset)} | com gasto={len(com_gasto)} | "
+              f"ativos E com gasto={len(ativos_gasto)}   (cap atual TOP_N=50)")
+
+    # 6) action_types por campanha (amostra tráfego-perfil e leads) p/ o modal
+    print("\n== action_types por campanha (amostra) ==")
+    sample = graph_get(f"{AD_ACCOUNT}/insights",
+                       {"level": "campaign", "date_preset": "last_30d",
+                        "fields": "campaign_name,spend,reach,actions", "limit": 500})
+    for alvo in ["TRÁFEGO INSTAGRAM", "LEADS", "RECONHECIMENTO"]:
+        for r in sample:
+            if alvo in (r.get("campaign_name") or ""):
+                acts = [a["action_type"] for a in (r.get("actions") or [])]
+                print(f"  [{alvo}] {(r.get('campaign_name') or '')[:38]}  "
+                      f"spend={r.get('spend')} reach={r.get('reach')}")
+                print(f"    actions: {acts}")
+                break
+
     print("\n== Fim do diagnóstico ==")
 
 
