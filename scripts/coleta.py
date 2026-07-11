@@ -396,11 +396,12 @@ def instagram_conta():
 
 
 def ig_novos_seguidores(ig_id, since_d, until_d):
-    """Soma de novos seguidores no intervalo (a API limita a 30 dias por chamada)."""
+    """Soma de novos seguidores no intervalo. A API do IG exige janela ABAIXO de
+    30 dias por chamada, então quebramos em pedaços de até 28 dias."""
     total = 0
     cur = since_d
     while cur <= until_d:
-        fim = min(cur + timedelta(days=29), until_d)
+        fim = min(cur + timedelta(days=27), until_d)   # span de até 28 dias (< 30)
         res = graph_get(f"{ig_id}/insights", {
             "metric": "follower_count", "period": "day",
             "since": ts_sp(cur), "until": ts_sp(fim + timedelta(days=1))})
@@ -430,13 +431,19 @@ def ig_totais(ig_id, since_d, until_d):
 
 
 def coletar_instagram(ig_id, pdef, spend_periodo):
-    novos = ig_novos_seguidores(ig_id, *pdef["atual"])
-    prev = ig_novos_seguidores(ig_id, *pdef["anterior"])
+    def novos(janela):
+        try:
+            return ig_novos_seguidores(ig_id, *janela)
+        except MetaError as e:
+            print(f"  (follower_count indisponível: {str(e)[:140]})", file=sys.stderr)
+            return None
+    n = novos(pdef["atual"])
+    prev = novos(pdef["anterior"])
     t = ig_totais(ig_id, *pdef["atual"])
     return {
-        "novosSeguidores": novos,
+        "novosSeguidores": n,
         "prevNovos": prev,
-        "custoSeguidor": custo(spend_periodo, novos),
+        "custoSeguidor": custo(spend_periodo, n) if n else None,
         "profileViews": t["profileViews"],
         "reachOrg": t["reachOrg"],
         "websiteClicks": t["websiteClicks"],

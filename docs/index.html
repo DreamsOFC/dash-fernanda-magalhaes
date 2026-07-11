@@ -357,7 +357,7 @@ function renderIG(p, meta){
   card.style.display = '';
   document.getElementById('ig-user').textContent  = meta.ig_username ? '@' + meta.ig_username : '';
   document.getElementById('ig-total').textContent = meta.seguidores_total ? int(meta.seguidores_total) + ' seguidores' : '';
-  document.getElementById('ig-novos').textContent = int(ig.novosSeguidores);
+  document.getElementById('ig-novos').textContent = ig.novosSeguidores==null ? '—' : int(ig.novosSeguidores);
   setDelta('ig-d-novos', ig.novosSeguidores, ig.prevNovos, false);
   document.getElementById('ig-custo').textContent = money(ig.custoSeguidor);
   document.getElementById('ig-perfil').textContent= int(ig.profileViews);
