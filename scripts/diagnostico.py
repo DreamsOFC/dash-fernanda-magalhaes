@@ -218,33 +218,23 @@ def main():
                 print(f"    actions: {acts}")
                 break
 
-    # 7) Caçar a métrica "Seguidores no Instagram" por campanha (existe no Gerenciador!)
-    print("\n== Procurando 'Seguidores no Instagram' por campanha ==")
-    variacoes = [
-        ("padrão", {}),
-        ("unified", {"use_unified_attribution_setting": "true"}),
-        ("attr 7d_click/1d_view", {"action_attribution_windows": '["7d_click","1d_view"]'}),
-        ("attr 1d_view", {"action_attribution_windows": '["1d_view"]'}),
-    ]
-    for nome_v, extra in variacoes:
-        q = {"level": "campaign", "date_preset": "last_30d",
-             "fields": "campaign_name,spend,actions", "limit": 500}
-        q.update(extra)
+    # 7) Inventário COMPLETO de action_types (com atribuição unificada) p/ achar seguidores
+    print("\n== Inventário completo de action_types (atribuição unificada) ==")
+    for preset in ["last_30d", "maximum"]:
         try:
-            rows = graph_get(f"{AD_ACCOUNT}/insights", q)
+            rows = graph_get(f"{AD_ACCOUNT}/insights", {
+                "level": "account", "date_preset": preset,
+                "fields": "spend,actions,cost_per_action_type",
+                "use_unified_attribution_setting": "true", "limit": 50})
         except RuntimeError as e:
-            print(f"  [{nome_v}] erro: {str(e)[:80]}"); continue
-        achados = []
-        tipos = set()
-        for r in rows:
-            for a in (r.get("actions") or []):
-                at = (a.get("action_type") or "")
-                if "follow" in at.lower():
-                    tipos.add(at)
-                    achados.append((r.get("campaign_name", "")[:34], at, a.get("value")))
-        print(f"  [{nome_v}] linhas com 'follow': {len(achados)} | tipos: {sorted(tipos)}")
-        for cn, at, val in achados[:5]:
-            print(f"      {cn}  {at} = {val}")
+            print(f"  [{preset}] erro: {str(e)[:80]}"); continue
+        if not rows:
+            print(f"  [{preset}] sem dados"); continue
+        acts = sorted(((a.get("action_type", ""), float(a.get("value") or 0))
+                       for a in (rows[0].get("actions") or [])), key=lambda x: -x[1])
+        print(f"  [{preset}] {len(acts)} action_types (todos):")
+        for at, v in acts:
+            print(f"    {v:>13,.0f}  {at}")
 
     print("\n== Fim do diagnóstico ==")
 
