@@ -218,6 +218,34 @@ def main():
                 print(f"    actions: {acts}")
                 break
 
+    # 7) Caçar a métrica "Seguidores no Instagram" por campanha (existe no Gerenciador!)
+    print("\n== Procurando 'Seguidores no Instagram' por campanha ==")
+    variacoes = [
+        ("padrão", {}),
+        ("unified", {"use_unified_attribution_setting": "true"}),
+        ("attr 7d_click/1d_view", {"action_attribution_windows": '["7d_click","1d_view"]'}),
+        ("attr 1d_view", {"action_attribution_windows": '["1d_view"]'}),
+    ]
+    for nome_v, extra in variacoes:
+        q = {"level": "campaign", "date_preset": "last_30d",
+             "fields": "campaign_name,spend,actions", "limit": 500}
+        q.update(extra)
+        try:
+            rows = graph_get(f"{AD_ACCOUNT}/insights", q)
+        except RuntimeError as e:
+            print(f"  [{nome_v}] erro: {str(e)[:80]}"); continue
+        achados = []
+        tipos = set()
+        for r in rows:
+            for a in (r.get("actions") or []):
+                at = (a.get("action_type") or "")
+                if "follow" in at.lower():
+                    tipos.add(at)
+                    achados.append((r.get("campaign_name", "")[:34], at, a.get("value")))
+        print(f"  [{nome_v}] linhas com 'follow': {len(achados)} | tipos: {sorted(tipos)}")
+        for cn, at, val in achados[:5]:
+            print(f"      {cn}  {at} = {val}")
+
     print("\n== Fim do diagnóstico ==")
 
 
