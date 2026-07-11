@@ -116,6 +116,50 @@ def main():
     for s, nome, imp in sorted(tops, reverse=True)[:8]:
         print(f"    {'[TURBO]' if imp else '[CAMP ]'} R$ {s:>9,.2f}  {(nome or '')[:52]}")
 
+    # 4) Instagram — descobrir a conta e testar métricas de perfil/seguidores
+    print("\n== Instagram (perfil + seguidores) ==")
+    try:
+        pages = graph_get("me/accounts", {
+            "fields": "name,instagram_business_account{id,username,followers_count,media_count}",
+            "limit": 50})
+    except RuntimeError as e:
+        pages = None
+        print(f"  NÃO consegui listar Páginas/Instagram: {e}")
+        print("  -> provavelmente faltam as permissões instagram_basic / "
+              "instagram_manage_insights / pages_show_list no token.")
+
+    ig_id = None
+    if pages:
+        print(f"  {len(pages)} Página(s) acessível(is) pelo token:")
+        for p in pages:
+            iga = p.get("instagram_business_account")
+            if iga:
+                ig_id = ig_id or iga.get("id")
+                print(f"    - {p.get('name')}  ->  IG @{iga.get('username')} "
+                      f"(id {iga.get('id')}, {iga.get('followers_count')} seguidores)")
+            else:
+                print(f"    - {p.get('name')}  (sem Instagram vinculado)")
+
+    if ig_id:
+        print(f"\n  Testando métricas da conta IG {ig_id} (últimos 14 dias):")
+        hoje = int(time.time())
+        since = hoje - 14 * 86400
+        for metric, params in [
+            ("follower_count", {"metric": "follower_count", "period": "day"}),
+            ("profile_views",  {"metric": "profile_views", "period": "day", "metric_type": "total_value"}),
+            ("reach",          {"metric": "reach", "period": "day", "metric_type": "total_value"}),
+            ("website_clicks", {"metric": "website_clicks", "period": "day", "metric_type": "total_value"}),
+        ]:
+            try:
+                q = dict(params); q["since"] = since; q["until"] = hoje
+                res = graph_get(f"{ig_id}/insights", q)
+                amostra = json.dumps(res)[:180] if res else "(vazio)"
+                print(f"    ✓ {metric}: {amostra}")
+            except RuntimeError as e:
+                print(f"    ✗ {metric}: {str(e)[:180]}")
+    else:
+        print("  Nenhuma conta de Instagram vinculada encontrada pelo token.")
+
     print("\n== Fim do diagnóstico ==")
 
 
