@@ -1,0 +1,52 @@
+name: Coleta Meta Ads
+
+on:
+  schedule:
+    # De hora em hora (minuto 5 p/ evitar o pico de carga do cron do GitHub).
+    - cron: "5 * * * *"
+  workflow_dispatch: {}   # permite disparar manualmente pela aba Actions
+
+# O workflow precisa escrever de volta no repo (commit dos JSONs).
+permissions:
+  contents: write
+
+# Evita duas coletas simultâneas pisando uma na outra.
+concurrency:
+  group: coleta
+  cancel-in-progress: false
+
+jobs:
+  coleta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install -r scripts/requirements.txt
+
+      - name: Coletar dados do Meta
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          META_AD_ACCOUNT_ID: ${{ secrets.META_AD_ACCOUNT_ID }}
+          DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+          # Opcional — só se precisar fixar outra versão da Graph API:
+          # GRAPH_VERSION: v23.0
+        run: python scripts/coleta.py
+
+      - name: Commitar dados atualizados
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data/*.json
+          if git diff --cached --quiet; then
+            echo "Sem mudanças nos dados — nada a commitar."
+          else
+            git commit -m "chore: atualiza dados do Meta ($(TZ=America/Sao_Paulo date '+%d/%m %H:%M'))"
+            git push
+          fi

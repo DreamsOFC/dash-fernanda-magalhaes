@@ -1,0 +1,17 @@
+# Segredos e ambiente local — NUNCA commitar
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Ferramentas locais
+.claude/

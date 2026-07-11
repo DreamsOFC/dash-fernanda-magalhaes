@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fernanda Magalhães — Painel de mídia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#F6F7F6; --surface:#FFFFFF; --ink:#16191C; --muted:#7A8189; --faint:#9CA3A0;
+  --line:#E6E9E7; --accent:#0F6E56; --accent-soft:#E3F1EC;
+  --ok:#2E7D5B; --warn:#B4740E; --bad:#C2453B;
+  --ok-bg:#E7F2EC; --warn-bg:#FBF0DC; --bad-bg:#FAE9E7;
+  --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:"Instrument Sans",system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.num{font-family:"Space Grotesk",monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+.wrap{max-width:1100px;margin:0 auto;padding:32px 20px 64px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:28px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:500}
+h1{font-family:"Space Grotesk",sans-serif;font-size:28px;font-weight:500;letter-spacing:-0.02em;margin-top:2px}
+.sync{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+
+/* period chips */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:24px}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 15px;font-size:13.5px;color:var(--muted);cursor:pointer;font-family:inherit;transition:.15s}
+.chip:hover{border-color:#CFD4D1;color:var(--ink)}
+.chip[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* cards */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.card + .card{margin-top:16px}
+.card-title{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:16px}
+
+/* alocação — elemento assinatura */
+.alloc-bar{display:flex;gap:3px;height:44px;margin-bottom:14px}
+.alloc-seg{border-radius:6px;position:relative;cursor:default;transition:.2s;min-width:14px}
+.alloc-seg:hover{filter:brightness(.94)}
+.alloc-legend{display:flex;flex-wrap:wrap;gap:6px 20px}
+.alloc-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.alloc-key{width:9px;height:9px;border-radius:3px;flex:none}
+.alloc-item b{color:var(--ink);font-weight:500}
+
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:16px 0}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+.kpi-label{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.kpi-val{font-size:30px;font-weight:500;line-height:1.1}
+.kpi-foot{margin-top:9px;font-size:12.5px;color:var(--faint);display:flex;align-items:center;gap:6px}
+.delta{font-weight:500;font-family:"Space Grotesk";font-variant-numeric:tabular-nums}
+.up{color:var(--ok)} .down{color:var(--bad)}
+.kpi.hero{background:var(--ink);border-color:var(--ink);color:#fff}
+.kpi.hero .kpi-label,.kpi.hero .kpi-foot{color:#9AA3A0}
+
+/* secundárias */
+.mini{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.mini div{background:var(--surface);padding:16px}
+.mini span{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.mini strong{font-size:19px;font-weight:500}
+
+/* sugestões */
+.tips{list-style:none;display:flex;flex-direction:column;gap:10px}
+.tip{display:flex;gap:11px;font-size:14.5px;line-height:1.5;padding:13px 15px;border-radius:10px;align-items:flex-start}
+.tip.bad{background:var(--bad-bg)} .tip.warn{background:var(--warn-bg)} .tip.ok{background:var(--ok-bg)}
+.tip i{font-style:normal;font-weight:700;flex:none;line-height:1.45}
+.tip.bad i{color:var(--bad)} .tip.warn i{color:var(--warn)} .tip.ok i{color:var(--ok)}
+
+/* tabela */
+.table-scroll{overflow-x:auto;margin:0 -22px -22px;padding:0 22px 6px}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:720px}
+th{text-align:right;font-size:12px;font-weight:500;color:var(--muted);padding:0 0 12px;white-space:nowrap}
+th:first-child{text-align:left}
+td{padding:15px 0;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+td:first-child{text-align:left;padding-right:20px;white-space:normal}
+.camp{display:flex;align-items:center;gap:10px}
+.pulse{width:8px;height:8px;border-radius:50%;flex:none}
+.camp-name{font-weight:500}
+.camp-sub{font-size:12px;color:var(--faint)}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:500;margin-left:6px;vertical-align:1px}
+.pill{display:inline-block;padding:3px 9px;border-radius:7px;font-weight:500}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+
+.chart-box{position:relative;height:290px}
+footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
+
+/* aviso discreto de dados de exemplo */
+.demo-note{display:none;align-items:center;gap:8px;background:var(--warn-bg);color:var(--warn);
+  border:1px solid #EBD9B0;border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:500;margin-bottom:20px;width:fit-content}
+.demo-note.on{display:flex}
+
+/* tela de senha — mesmo estilo visual do dash */
+.gate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+.gate.on{display:flex}
+.gate-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:32px;max-width:360px;width:100%;box-shadow:0 8px 40px rgba(22,25,28,.06)}
+.gate-eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:500}
+.gate-card h2{font-family:"Space Grotesk",sans-serif;font-size:22px;font-weight:500;letter-spacing:-.02em;margin:2px 0 6px}
+.gate-card p{font-size:13.5px;color:var(--muted);margin-bottom:18px}
+.gate-card input{width:100%;font-family:inherit;font-size:15px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);margin-bottom:12px}
+.gate-card input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.gate-card button{width:100%;font-family:inherit;font-size:15px;font-weight:500;padding:12px;border:none;border-radius:10px;background:var(--ink);color:#fff;cursor:pointer;transition:.15s}
+.gate-card button:hover{background:#000}
+.gate-card button:disabled{opacity:.6;cursor:default}
+.gate-err{color:var(--bad);font-size:13px;margin-top:10px;min-height:18px}
+
+@media(max-width:860px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .mini{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:520px){
+  .wrap{padding:24px 14px 48px}
+  h1{font-size:23px}
+  .kpi-val{font-size:26px}
+  .card{padding:18px}
+  .table-scroll{margin:0 -18px -18px;padding:0 18px 6px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<!-- Tela de senha (só aparece quando há dados reais criptografados) -->
+<div class="gate" id="gate" aria-hidden="true">
+  <form class="gate-card" id="gate-form" autocomplete="off">
+    <div class="gate-eyebrow">Painel de mídia</div>
+    <h2>Fernanda Magalhães</h2>
+    <p>Este relatório é protegido. Digite a senha de acesso para visualizar os resultados.</p>
+    <input type="password" id="gate-pass" placeholder="Senha" autocomplete="current-password" aria-label="Senha">
+    <button type="submit" id="gate-btn">Entrar</button>
+    <div class="gate-err" id="gate-err" role="alert"></div>
+  </form>
+</div>
+
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <div class="eyebrow">Meta Ads</div>
+      <h1>Fernanda Magalhães</h1>
+    </div>
+    <div class="sync"><span class="dot"></span><span>Atualizado <span id="sync-time">—</span></span></div>
+  </header>
+
+  <div class="demo-note" id="demo-note"><span>●</span> Dados de exemplo — a coleta real ainda não rodou</div>
+
+  <div class="chips" role="tablist" aria-label="Período">
+    <button class="chip" role="tab" data-p="7">7 dias</button>
+    <button class="chip" role="tab" data-p="30" aria-selected="true">30 dias</button>
+    <button class="chip" role="tab" data-p="mes">Mês atual</button>
+  </div>
+
+  <!-- KPIs primários -->
+  <div class="kpis">
+    <div class="kpi hero">
+      <div class="kpi-label">Investimento</div>
+      <div class="kpi-val num" id="k-spend">—</div>
+      <div class="kpi-foot"><span class="delta" id="d-spend">—</span> vs. período anterior</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Conversas iniciadas</div>
+      <div class="kpi-val num" id="k-conv">—</div>
+      <div class="kpi-foot"><span class="delta" id="d-conv">—</span> vs. período anterior</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Custo por conversa</div>
+      <div class="kpi-val num" id="k-cpc-msg">—</div>
+      <div class="kpi-foot"><span class="delta" id="d-cpc-msg">—</span> vs. período anterior</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Cliques no link</div>
+      <div class="kpi-val num" id="k-clicks">—</div>
+      <div class="kpi-foot"><span class="delta" id="d-clicks">—</span> vs. período anterior</div>
+    </div>
+  </div>
+
+  <!-- Métricas secundárias -->
+  <div class="mini">
+    <div><span>CPM</span><strong class="num" id="m-cpm">—</strong></div>
+    <div><span>CPC</span><strong class="num" id="m-cpc">—</strong></div>
+    <div><span>CTR</span><strong class="num" id="m-ctr">—</strong></div>
+    <div><span>Frequência</span><strong class="num" id="m-freq">—</strong></div>
+    <div><span>Alcance</span><strong class="num" id="m-reach">—</strong></div>
+    <div><span>Impressões</span><strong class="num" id="m-impr">—</strong></div>
+  </div>
+
+  <!-- Elemento assinatura: para onde vai o dinheiro -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Para onde foi o investimento</div>
+    <div class="alloc-bar" id="alloc-bar"></div>
+    <div class="alloc-legend" id="alloc-legend"></div>
+  </div>
+
+  <!-- Sugestões -->
+  <div class="card">
+    <div class="card-title">O que merece atenção</div>
+    <ul class="tips" id="tips"></ul>
+  </div>
+
+  <!-- Gráfico -->
+  <div class="card">
+    <div class="card-title">Investimento e custo por conversa, dia a dia</div>
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+  </div>
+
+  <!-- Campanhas -->
+  <div class="card">
+    <div class="card-title">Campanhas ativas</div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Campanha</th><th>Investido</th><th>Conversas</th><th>Custo/conversa</th>
+            <th>CPM</th><th>CTR</th><th>Freq.</th><th>Situação</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>Os números do dia corrente ainda estão consolidando no Meta e podem mudar nas próximas horas.</footer>
+</div>
+
+<script>
+/* =======================================================================
+   RÉGUAS DE SAÚDE — mantidas exatamente como no layout aprovado
+   ======================================================================= */
+const APRENDIZADO = 7;
+function saude(c){
+  if(c.dias < APRENDIZADO && c.cpm <= 6) return {n:'learn', label:'Aprendizado'};
+  const alertas = [];
+  if(c.cpm > 5) alertas.push('cpm');
+  if(c.ctr < 0.8) alertas.push('ctr');
+  if(c.conversas && c.spend/c.conversas > 15) alertas.push('custo');
+  if(alertas.length >= 2) return {n:'bad', label:'Crítica'};
+  if(alertas.length === 1 || c.cpm > 3 || c.freq > 5) return {n:'warn', label:'Monitorar'};
+  return {n:'ok', label:'Saudável'};
+}
+const COR = {ok:'#2E7D5B', warn:'#B4740E', bad:'#C2453B', learn:'#7A8189'};
+const brl = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const int = v => Math.round(v||0).toLocaleString('pt-BR');
+
+/* =======================================================================
+   RENDERIZAÇÃO — mesmo markup do layout, agora alimentada por dados
+   ======================================================================= */
+let chart = null;
+let DATA = null;   // {periods:{'7','30','mes'}, diario:[...], meta:{...}, demo:bool}
+
+function fmtDelta(cur, prev, invert){
+  const el = {txt:'—', cls:''};
+  if(prev == null || prev === 0 || cur == null) return el;
+  const change = (cur - prev) / Math.abs(prev) * 100;
+  const melhor = invert ? change < 0 : change > 0;
+  el.cls = change === 0 ? '' : (melhor ? 'up' : 'down');
+  el.txt = (change > 0 ? '+' : '−') + Math.abs(Math.round(change)) + '%';
+  return el;
+}
+function setDelta(id, cur, prev, invert){
+  const s = fmtDelta(cur, prev, invert), e = document.getElementById(id);
+  e.textContent = s.txt;
+  e.className = 'delta ' + s.cls;
+}
+
+function renderKPIs(p){
+  const k = p.kpis, pv = p.prev || {};
+  document.getElementById('k-spend').textContent  = 'R$ ' + int(k.spend);
+  document.getElementById('k-conv').textContent   = int(k.conversas);
+  document.getElementById('k-cpc-msg').textContent= k.custoConversa != null ? brl(k.custoConversa) : '—';
+  document.getElementById('k-clicks').textContent = int(k.clicks);
+  setDelta('d-spend',  k.spend,        pv.spend,        false);
+  setDelta('d-conv',   k.conversas,    pv.conversas,    false);
+  setDelta('d-cpc-msg',k.custoConversa,pv.custoConversa,true);   // custo: cair é bom
+  setDelta('d-clicks', k.clicks,       pv.clicks,       false);
+
+  document.getElementById('m-cpm').textContent  = brl(k.cpm);
+  document.getElementById('m-cpc').textContent  = brl(k.cpc);
+  document.getElementById('m-ctr').textContent  = (k.ctr || 0).toFixed(2) + '%';
+  document.getElementById('m-freq').textContent = (k.freq || 0).toFixed(1);
+  document.getElementById('m-reach').textContent= int(k.reach);
+  document.getElementById('m-impr').textContent = int(k.impressions);
+}
+
+function renderAlloc(CAMPANHAS){
+  const total = CAMPANHAS.reduce((s,c)=>s+c.spend,0) || 1;
+  const bar = document.getElementById('alloc-bar');
+  const leg = document.getElementById('alloc-legend');
+  bar.innerHTML = ''; leg.innerHTML = '';
+  CAMPANHAS.forEach(c=>{
+    const s = saude(c), pct = c.spend/total*100;
+    const seg = document.createElement('div');
+    seg.className = 'alloc-seg';
+    seg.style.cssText = `flex:${c.spend};background:${COR[s.n]}`;
+    seg.title = `${c.nome} — ${brl(c.spend)} (${pct.toFixed(0)}%)`;
+    bar.appendChild(seg);
+    const item = document.createElement('div');
+    item.className = 'alloc-item';
+    item.innerHTML = `<span class="alloc-key" style="background:${COR[s.n]}"></span>
+      <span><b>${c.nome}</b> · ${brl(c.spend)} <span class="num">(${pct.toFixed(0)}%)</span></span>`;
+    leg.appendChild(item);
+  });
+}
+
+function renderTips(CAMPANHAS){
+  const tips = [];
+  CAMPANHAS.forEach(c=>{
+    const s = saude(c), custo = c.conversas ? c.spend/c.conversas : null;
+    if(s.n === 'learn'){
+      tips.push({t:'ok', txt:`<b>${c.nome}</b> tem ${c.dias} dias no ar e ainda está aprendendo. Deixe rodar até completar 7 dias antes de mexer.`});
+    }
+    if(c.cpm > 5 && s.n !== 'learn'){
+      tips.push({t:'bad', txt:`<b>${c.nome}</b> está com CPM de ${brl(c.cpm)} — acima do limite de R$ 5. O criativo provavelmente cansou ou o público está estreito demais.`});
+    }
+    if(c.ctr < 0.8 && s.n !== 'learn'){
+      tips.push({t:'bad', txt:`<b>${c.nome}</b> tem CTR de ${c.ctr.toFixed(2)}% — as pessoas estão vendo e não clicando. Vale testar um criativo novo.`});
+    }
+    if(custo && custo > 15){
+      tips.push({t:'warn', txt:`<b>${c.nome}</b> está pagando ${brl(custo)} por conversa. Acima de R$ 15 a conta começa a apertar.`});
+    }
+    if(c.freq > 5 && c.cpm <= 3){
+      tips.push({t:'ok', txt:`<b>${c.nome}</b> tem frequência alta (${c.freq}), mas o CPM segue baixo. O criativo ainda está funcionando — não pause só pela frequência.`});
+    }
+  });
+  if(!tips.length) tips.push({t:'ok', txt:'Nenhum alerta. As campanhas estão dentro das réguas de CPM, CTR e custo por conversa.'});
+  document.getElementById('tips').innerHTML = tips.map(t=>
+    `<li class="tip ${t.t}"><i>${t.t==='ok'?'✓':'!'}</i><span>${t.txt}</span></li>`
+  ).join('');
+}
+
+function renderTable(CAMPANHAS){
+  document.getElementById('tbody').innerHTML = CAMPANHAS.map(c=>{
+    const s = saude(c), custo = c.conversas ? brl(c.spend/c.conversas) : '—';
+    return `<tr>
+      <td><div class="camp">
+        <span class="pulse" style="background:${COR[s.n]}"></span>
+        <span><span class="camp-name">${c.nome}</span>${s.n==='learn'?'<span class="tag">novo</span>':''}
+        <div class="camp-sub">${c.objetivo} · ${c.dias} dias no ar</div></span>
+      </div></td>
+      <td class="num">${brl(c.spend)}</td>
+      <td class="num">${c.conversas}</td>
+      <td class="num">${custo}</td>
+      <td class="num">${brl(c.cpm)}</td>
+      <td class="num">${c.ctr.toFixed(2)}%</td>
+      <td class="num">${c.freq.toFixed(1)}</td>
+      <td><span class="pill ${s.n==='learn'?'':s.n}">${s.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* Recorta a série diária de 90 dias para o período selecionado */
+function sliceSerie(periodKey){
+  const serie = DATA.diario || [];
+  const hoje = new Date();
+  if(periodKey === 'mes'){
+    const pref = hoje.toISOString().slice(0,7);          // 'YYYY-MM'
+    return serie.filter(d => (d.date||'').startsWith(pref));
+  }
+  const n = periodKey === '7' ? 7 : 30;
+  const corte = new Date(hoje); corte.setDate(corte.getDate() - (n-1));
+  const cutISO = corte.toISOString().slice(0,10);
+  return serie.filter(d => (d.date||'') >= cutISO);
+}
+
+function renderChart(periodKey){
+  const serie = sliceSerie(periodKey);
+  const labels = serie.map(d => d.date ? 'D' + parseInt(d.date.slice(8,10),10) : '');
+  if(chart) chart.destroy();
+  chart = new Chart(document.getElementById('chart'), {
+    data:{
+      labels,
+      datasets:[
+        {type:'bar', label:'Investimento', data:serie.map(d=>d.spend), yAxisID:'y',
+         backgroundColor:'#E3F1EC', hoverBackgroundColor:'#C9E3D9', borderRadius:5, barPercentage:.72},
+        {type:'line', label:'Custo por conversa', data:serie.map(d=>d.custoConversa), yAxisID:'y2',
+         borderColor:'#0F6E56', backgroundColor:'#0F6E56', borderWidth:2, tension:.35,
+         pointRadius:0, pointHoverRadius:4, spanGaps:true}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{position:'bottom', align:'start',
+          labels:{boxWidth:9, boxHeight:9, usePointStyle:true, pointStyle:'circle',
+            padding:18, font:{family:'Instrument Sans', size:12.5}, color:'#7A8189'}},
+        tooltip:{backgroundColor:'#16191C', padding:11, cornerRadius:8, displayColors:false,
+          titleFont:{family:'Instrument Sans', size:12}, bodyFont:{family:'Space Grotesk', size:13},
+          callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y==null?'—':brl(c.parsed.y)}`}}
+      },
+      scales:{
+        x:{grid:{display:false}, border:{display:false},
+           ticks:{color:'#9CA3A0', font:{family:'Space Grotesk', size:11}, maxTicksLimit:10}},
+        y:{position:'left', grid:{color:'#EEF0EF'}, border:{display:false},
+           ticks:{color:'#9CA3A0', font:{family:'Space Grotesk', size:11}, callback:v=>'R$'+v}},
+        y2:{position:'right', grid:{display:false}, border:{display:false},
+            ticks:{color:'#0F6E56', font:{family:'Space Grotesk', size:11}, callback:v=>'R$'+v}}
+      }
+    }
+  });
+}
+
+function render(periodKey){
+  const p = DATA.periods[periodKey];
+  const CAMPANHAS = p.campanhas || [];
+  renderKPIs(p);
+  renderAlloc(CAMPANHAS);
+  renderTips(CAMPANHAS);
+  renderTable(CAMPANHAS);
+  renderChart(periodKey);
+}
+
+/* Chips de período — agora recalculam de verdade, sem chamar a API */
+function periodoSelecionado(){
+  const sel = document.querySelector('.chip[aria-selected="true"]');
+  return sel ? sel.dataset.p : '30';
+}
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('.chip').forEach(c=>c.removeAttribute('aria-selected'));
+    chip.setAttribute('aria-selected','true');
+    if(DATA) render(chip.dataset.p);
+  });
+});
+
+/* =======================================================================
+   CRIPTOGRAFIA — descriptografa no navegador (AES-GCM + PBKDF2)
+   compatível com o scripts/coleta.py
+   ======================================================================= */
+function b64bytes(b64){
+  const bin = atob(b64), out = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+async function decrypt(env, senha){
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(senha),
+    'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    {name:'PBKDF2', salt:b64bytes(env.salt), iterations:env.iter, hash:'SHA-256'},
+    base, {name:'AES-GCM', length:256}, false, ['decrypt']);
+  const plain = await crypto.subtle.decrypt(
+    {name:'AES-GCM', iv:b64bytes(env.iv)}, key, b64bytes(env.ct));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+/* =======================================================================
+   CARREGAMENTO DOS DADOS + MODO DEMO
+   ======================================================================= */
+async function fetchEnv(nome){
+  try{
+    const r = await fetch('data/' + nome, {cache:'no-store'});
+    if(!r.ok) return null;              // 404 => arquivo ainda não existe
+    return await r.json();
+  }catch(e){ return null; }
+}
+
+function montarDados(campanhas, diario, meta){
+  DATA = {periods:campanhas, diario, meta, demo:false};
+  document.getElementById('sync-time').textContent = meta.updated_label || '—';
+  document.getElementById('demo-note').classList.remove('on');
+  render(periodoSelecionado());
+}
+
+async function unlock(senha){
+  const [ec, ed, em] = [ENV.campanhas, ENV.diario, ENV.meta];
+  const campanhas = await decrypt(ec, senha);
+  const diario    = await decrypt(ed, senha);
+  const meta      = await decrypt(em, senha);
+  sessionStorage.setItem('dash_pass', senha);
+  document.getElementById('gate').classList.remove('on');
+  document.getElementById('gate').setAttribute('aria-hidden','true');
+  montarDados(campanhas, diario, meta);
+}
+
+let ENV = {};
+
+function abrirGate(){
+  const gate = document.getElementById('gate');
+  gate.classList.add('on'); gate.setAttribute('aria-hidden','false');
+  document.getElementById('gate-pass').focus();
+}
+
+document.getElementById('gate-form').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const btn = document.getElementById('gate-btn');
+  const err = document.getElementById('gate-err');
+  const senha = document.getElementById('gate-pass').value;
+  err.textContent = ''; btn.disabled = true; btn.textContent = 'Verificando…';
+  try{
+    await unlock(senha);
+  }catch(ex){
+    err.textContent = 'Senha incorreta. Tente novamente.';
+    sessionStorage.removeItem('dash_pass');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+});
+
+async function boot(){
+  const [campanhas, diario, meta] = await Promise.all([
+    fetchEnv('campanhas.json'), fetchEnv('diario.json'), fetchEnv('meta.json')
+  ]);
+
+  // Algum arquivo faltando => coleta real ainda não rodou => modo demo.
+  if(!campanhas || !diario || !meta){
+    DATA = construirDemo();
+    document.getElementById('sync-time').textContent = 'dados de exemplo';
+    document.getElementById('demo-note').classList.add('on');
+    render(periodoSelecionado());
+    return;
+  }
+
+  // Dados reais criptografados -> guarda envelopes e pede a senha.
+  ENV = {campanhas, diario, meta};
+  const salvo = sessionStorage.getItem('dash_pass');
+  if(salvo){
+    try{ await unlock(salvo); return; }
+    catch(e){ sessionStorage.removeItem('dash_pass'); }
+  }
+  abrirGate();
+}
+
+/* =======================================================================
+   DADOS FICTÍCIOS (modo demo) — só usados quando não há JSON real ainda
+   ======================================================================= */
+const DEMO_CAMPANHAS = [
+  {nome:'Mensagens — Agendamento',        objetivo:'Mensagens', spend:1980, conversas:168, cpm:3.20, ctr:1.62, freq:2.1, dias:24},
+  {nome:'Remarketing — Visitantes 30d',   objetivo:'Mensagens', spend:1140, conversas:104, cpm:4.40, ctr:1.48, freq:4.6, dias:31},
+  {nome:'Tráfego — Público frio',         objetivo:'Tráfego',   spend: 760, conversas: 32, cpm:5.90, ctr:0.71, freq:1.8, dias:18},
+  {nome:'Reconhecimento — Institucional', objetivo:'Alcance',   spend: 400, conversas:  8, cpm:6.30, ctr:0.64, freq:1.2, dias: 4}
+];
+
+function demoDiario(){
+  // 90 dias terminando hoje, padrão parecido com o do layout original.
+  const serie = [], hoje = new Date();
+  for(let k=89;k>=0;k--){
+    const dt = new Date(hoje); dt.setDate(dt.getDate()-k);
+    const i = 89-k;
+    const spend = +(110 + Math.sin(i/3)*38 + (i%7)*4).toFixed(2);
+    const cc    = +(11 + Math.cos(i/4)*3.4 + (i%5)*0.4).toFixed(2);
+    const conv  = Math.max(1, Math.round(spend/cc));
+    serie.push({date: dt.toISOString().slice(0,10), spend, conversas:conv,
+      custoConversa:+(spend/conv).toFixed(2), clicks: Math.round(spend*0.43)});
+  }
+  return serie;
+}
+
+function agrega(serie){
+  const spend = serie.reduce((s,d)=>s+d.spend,0);
+  const conversas = serie.reduce((s,d)=>s+d.conversas,0);
+  const clicks = serie.reduce((s,d)=>s+d.clicks,0);
+  const impressions = Math.round(spend/4.1*1000);
+  return {
+    spend:+spend.toFixed(2), conversas, clicks,
+    custoConversa: conversas ? +(spend/conversas).toFixed(2) : null,
+    cpm:4.10, cpc:0.89, ctr:1.32, freq:2.4,
+    reach: Math.round(impressions/2.4), impressions
+  };
+}
+
+function construirDemo(){
+  const serie = demoDiario();
+  const hoje = new Date();
+  const prefMes = hoje.toISOString().slice(0,7);
+  const janela = (n)=>{ const c=new Date(hoje); c.setDate(c.getDate()-(n-1));
+    return serie.filter(d=>d.date >= c.toISOString().slice(0,10)); };
+  const janelaMes = serie.filter(d=>d.date.startsWith(prefMes));
+
+  const escala = (base, fator)=> base.map(c=>({...c,
+    spend:+(c.spend*fator).toFixed(0), conversas:Math.round(c.conversas*fator)}));
+
+  function periodo(sliceAtual, slicePrev, campanhas){
+    const kpis = agrega(sliceAtual);
+    const prev = agrega(slicePrev);
+    return {kpis, prev:{spend:prev.spend, conversas:prev.conversas,
+      custoConversa:prev.custoConversa, clicks:prev.clicks}, campanhas};
+  }
+  const prev7  = serie.slice(-14,-7), prev30 = serie.slice(-60,-30);
+  const prevMesLen = janelaMes.length;
+  const prevMes = serie.slice(-(prevMesLen*2), -prevMesLen);
+
+  return {demo:true, diario:serie, meta:{updated_label:'dados de exemplo'},
+    periods:{
+      '7':   periodo(janela(7),  prev7,  escala(DEMO_CAMPANHAS, 0.25)),
+      '30':  periodo(janela(30), prev30, DEMO_CAMPANHAS),
+      'mes': periodo(janelaMes,  prevMes, escala(DEMO_CAMPANHAS, Math.max(0.2, janelaMes.length/30)))
+    }};
+}
+
+boot();
+</script>
+</body>
+</html>
