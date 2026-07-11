@@ -38,7 +38,8 @@ h1{font-family:"Space Grotesk",sans-serif;font-size:28px;font-weight:500;letter-
 /* cards */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
 .card + .card{margin-top:16px}
-.card-title{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:16px}
+.card-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-title{font-size:13px;font-weight:500;color:var(--muted)}
 
 /* alocação — elemento assinatura */
 .alloc-bar{display:flex;gap:3px;height:44px;margin-bottom:14px}
@@ -61,7 +62,7 @@ h1{font-family:"Space Grotesk",sans-serif;font-size:28px;font-weight:500;letter-
 .kpi.hero .kpi-label,.kpi.hero .kpi-foot{color:#9AA3A0}
 
 /* secundárias */
-.mini{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .mini div{background:var(--surface);padding:16px}
 .mini span{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
 .mini strong{font-size:19px;font-weight:500}
@@ -72,6 +73,13 @@ h1{font-family:"Space Grotesk",sans-serif;font-size:28px;font-weight:500;letter-
 .tip.bad{background:var(--bad-bg)} .tip.warn{background:var(--warn-bg)} .tip.ok{background:var(--ok-bg)}
 .tip i{font-style:normal;font-weight:700;flex:none;line-height:1.45}
 .tip.bad i{color:var(--bad)} .tip.warn i{color:var(--warn)} .tip.ok i{color:var(--ok)}
+
+/* seletor de nível (campanha / conjunto / anúncio) */
+.levels{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px}
+.lvl{border:none;background:none;font-family:inherit;font-size:13px;color:var(--muted);padding:6px 14px;border-radius:999px;cursor:pointer;transition:.15s}
+.lvl:hover{color:var(--ink)}
+.lvl[aria-selected="true"]{background:var(--ink);color:#fff}
+.lvl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* tabela */
 .table-scroll{overflow-x:auto;margin:0 -22px -22px;padding:0 22px 6px}
@@ -89,6 +97,7 @@ td:first-child{text-align:left;padding-right:20px;white-space:normal}
 .pill.ok{background:var(--ok-bg);color:var(--ok)}
 .pill.warn{background:var(--warn-bg);color:var(--warn)}
 .pill.bad{background:var(--bad-bg);color:var(--bad)}
+.empty{padding:26px 0;text-align:center;color:var(--faint);font-size:13.5px}
 
 .chart-box{position:relative;height:290px}
 footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
@@ -114,7 +123,7 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
 
 @media(max-width:860px){
   .kpis{grid-template-columns:repeat(2,1fr)}
-  .mini{grid-template-columns:repeat(3,1fr)}
+  .mini{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:520px){
   .wrap{padding:24px 14px 48px}
@@ -166,28 +175,30 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
       <div class="kpi-foot"><span class="delta" id="d-spend">—</span> vs. período anterior</div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Conversas iniciadas</div>
-      <div class="kpi-val num" id="k-conv">—</div>
-      <div class="kpi-foot"><span class="delta" id="d-conv">—</span> vs. período anterior</div>
+      <div class="kpi-label">Cadastros</div>
+      <div class="kpi-val num" id="k-cad">—</div>
+      <div class="kpi-foot"><span class="delta" id="d-cad">—</span> vs. período anterior</div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Custo por conversa</div>
-      <div class="kpi-val num" id="k-cpc-msg">—</div>
-      <div class="kpi-foot"><span class="delta" id="d-cpc-msg">—</span> vs. período anterior</div>
+      <div class="kpi-label">Custo por cadastro</div>
+      <div class="kpi-val num" id="k-custocad">—</div>
+      <div class="kpi-foot"><span class="delta" id="d-custocad">—</span> vs. período anterior</div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Cliques no link</div>
-      <div class="kpi-val num" id="k-clicks">—</div>
-      <div class="kpi-foot"><span class="delta" id="d-clicks">—</span> vs. período anterior</div>
+      <div class="kpi-label">Visualizações do site</div>
+      <div class="kpi-val num" id="k-site">—</div>
+      <div class="kpi-foot"><span class="delta" id="d-site">—</span> vs. período anterior</div>
     </div>
   </div>
 
   <!-- Métricas secundárias -->
   <div class="mini">
+    <div><span>Custo por visualização</span><strong class="num" id="m-custosite">—</strong></div>
+    <div><span>Cliques no link</span><strong class="num" id="m-cliques">—</strong></div>
+    <div><span>Custo por clique</span><strong class="num" id="m-custoclique">—</strong></div>
+    <div><span>Conversas iniciadas</span><strong class="num" id="m-conversas">—</strong></div>
     <div><span>CPM</span><strong class="num" id="m-cpm">—</strong></div>
-    <div><span>CPC</span><strong class="num" id="m-cpc">—</strong></div>
     <div><span>CTR</span><strong class="num" id="m-ctr">—</strong></div>
-    <div><span>Frequência</span><strong class="num" id="m-freq">—</strong></div>
     <div><span>Alcance</span><strong class="num" id="m-reach">—</strong></div>
     <div><span>Impressões</span><strong class="num" id="m-impr">—</strong></div>
   </div>
@@ -207,19 +218,26 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
 
   <!-- Gráfico -->
   <div class="card">
-    <div class="card-title">Investimento e custo por conversa, dia a dia</div>
+    <div class="card-title">Investimento e custo por cadastro, dia a dia</div>
     <div class="chart-box"><canvas id="chart"></canvas></div>
   </div>
 
-  <!-- Campanhas -->
+  <!-- Tabela com seletor de nível -->
   <div class="card">
-    <div class="card-title">Campanhas ativas</div>
+    <div class="card-head">
+      <div class="card-title">Ativos com investimento no período</div>
+      <div class="levels" role="tablist" aria-label="Nível">
+        <button class="lvl" role="tab" data-l="campanhas" aria-selected="true">Campanhas</button>
+        <button class="lvl" role="tab" data-l="conjuntos">Conjuntos</button>
+        <button class="lvl" role="tab" data-l="anuncios">Anúncios</button>
+      </div>
+    </div>
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
-            <th>Campanha</th><th>Investido</th><th>Conversas</th><th>Custo/conversa</th>
-            <th>CPM</th><th>CTR</th><th>Freq.</th><th>Situação</th>
+            <th id="th-nome">Campanha</th><th>Investido</th><th>Cadastros</th><th>Custo/cad.</th>
+            <th>Cliques</th><th>CPM</th><th>CTR</th><th>Situação</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -227,7 +245,7 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
     </div>
   </div>
 
-  <footer>Os números do dia corrente ainda estão consolidando no Meta e podem mudar nas próximas horas.</footer>
+  <footer>Mostrando apenas campanhas, conjuntos e anúncios ativos que tiveram investimento no período. Os números do dia corrente ainda estão consolidando no Meta e podem mudar nas próximas horas.</footer>
 </div>
 
 <script>
@@ -248,12 +266,15 @@ function saude(c){
 const COR = {ok:'#2E7D5B', warn:'#B4740E', bad:'#C2453B', learn:'#7A8189'};
 const brl = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const int = v => Math.round(v||0).toLocaleString('pt-BR');
+const money = v => v==null ? '—' : brl(v);
 
 /* =======================================================================
-   RENDERIZAÇÃO — mesmo markup do layout, agora alimentada por dados
+   RENDERIZAÇÃO
    ======================================================================= */
 let chart = null;
-let DATA = null;   // {periods:{'7','30','mes'}, diario:[...], meta:{...}, demo:bool}
+let DATA = null;          // {periods:{'7','30','mes'}, diario:[...], meta:{...}}
+let nivel = 'campanhas';  // campanhas | conjuntos | anuncios
+const ROTULO = {campanhas:'Campanha', conjuntos:'Conjunto', anuncios:'Anúncio'};
 
 function fmtDelta(cur, prev, invert){
   const el = {txt:'—', cls:''};
@@ -266,35 +287,36 @@ function fmtDelta(cur, prev, invert){
 }
 function setDelta(id, cur, prev, invert){
   const s = fmtDelta(cur, prev, invert), e = document.getElementById(id);
-  e.textContent = s.txt;
-  e.className = 'delta ' + s.cls;
+  e.textContent = s.txt; e.className = 'delta ' + s.cls;
 }
 
 function renderKPIs(p){
   const k = p.kpis, pv = p.prev || {};
-  document.getElementById('k-spend').textContent  = 'R$ ' + int(k.spend);
-  document.getElementById('k-conv').textContent   = int(k.conversas);
-  document.getElementById('k-cpc-msg').textContent= k.custoConversa != null ? brl(k.custoConversa) : '—';
-  document.getElementById('k-clicks').textContent = int(k.clicks);
-  setDelta('d-spend',  k.spend,        pv.spend,        false);
-  setDelta('d-conv',   k.conversas,    pv.conversas,    false);
-  setDelta('d-cpc-msg',k.custoConversa,pv.custoConversa,true);   // custo: cair é bom
-  setDelta('d-clicks', k.clicks,       pv.clicks,       false);
+  document.getElementById('k-spend').textContent   = 'R$ ' + int(k.spend);
+  document.getElementById('k-cad').textContent     = int(k.cadastros);
+  document.getElementById('k-custocad').textContent= money(k.custoCadastro);
+  document.getElementById('k-site').textContent    = int(k.pageViews);
+  setDelta('d-spend',   k.spend,        pv.spend,        false);
+  setDelta('d-cad',     k.cadastros,    pv.cadastros,    false);
+  setDelta('d-custocad',k.custoCadastro,pv.custoCadastro,true);   // custo: cair é bom
+  setDelta('d-site',    k.pageViews,    pv.pageViews,    false);
 
-  document.getElementById('m-cpm').textContent  = brl(k.cpm);
-  document.getElementById('m-cpc').textContent  = brl(k.cpc);
-  document.getElementById('m-ctr').textContent  = (k.ctr || 0).toFixed(2) + '%';
-  document.getElementById('m-freq').textContent = (k.freq || 0).toFixed(1);
-  document.getElementById('m-reach').textContent= int(k.reach);
-  document.getElementById('m-impr').textContent = int(k.impressions);
+  document.getElementById('m-custosite').textContent  = money(k.custoPageView);
+  document.getElementById('m-cliques').textContent    = int(k.linkClicks);
+  document.getElementById('m-custoclique').textContent= money(k.custoClique);
+  document.getElementById('m-conversas').textContent  = int(k.conversas);
+  document.getElementById('m-cpm').textContent        = money(k.cpm);
+  document.getElementById('m-ctr').textContent        = (k.ctr || 0).toFixed(2) + '%';
+  document.getElementById('m-reach').textContent      = int(k.reach);
+  document.getElementById('m-impr').textContent       = int(k.impressions);
 }
 
-function renderAlloc(CAMPANHAS){
-  const total = CAMPANHAS.reduce((s,c)=>s+c.spend,0) || 1;
+function renderAlloc(lista){
+  const total = lista.reduce((s,c)=>s+c.spend,0) || 1;
   const bar = document.getElementById('alloc-bar');
   const leg = document.getElementById('alloc-legend');
   bar.innerHTML = ''; leg.innerHTML = '';
-  CAMPANHAS.forEach(c=>{
+  lista.slice(0,8).forEach(c=>{
     const s = saude(c), pct = c.spend/total*100;
     const seg = document.createElement('div');
     seg.className = 'alloc-seg';
@@ -309,10 +331,10 @@ function renderAlloc(CAMPANHAS){
   });
 }
 
-function renderTips(CAMPANHAS){
+function renderTips(lista){
   const tips = [];
-  CAMPANHAS.forEach(c=>{
-    const s = saude(c), custo = c.conversas ? c.spend/c.conversas : null;
+  lista.forEach(c=>{
+    const s = saude(c), c_cad = c.cadastros ? c.spend/c.cadastros : null;
     if(s.n === 'learn'){
       tips.push({t:'ok', txt:`<b>${c.nome}</b> tem ${c.dias} dias no ar e ainda está aprendendo. Deixe rodar até completar 7 dias antes de mexer.`});
     }
@@ -322,34 +344,42 @@ function renderTips(CAMPANHAS){
     if(c.ctr < 0.8 && s.n !== 'learn'){
       tips.push({t:'bad', txt:`<b>${c.nome}</b> tem CTR de ${c.ctr.toFixed(2)}% — as pessoas estão vendo e não clicando. Vale testar um criativo novo.`});
     }
-    if(custo && custo > 15){
-      tips.push({t:'warn', txt:`<b>${c.nome}</b> está pagando ${brl(custo)} por conversa. Acima de R$ 15 a conta começa a apertar.`});
+    if(c_cad && c_cad > 50){
+      tips.push({t:'warn', txt:`<b>${c.nome}</b> está pagando ${brl(c_cad)} por cadastro. Vale revisar a oferta ou o público.`});
     }
     if(c.freq > 5 && c.cpm <= 3){
       tips.push({t:'ok', txt:`<b>${c.nome}</b> tem frequência alta (${c.freq}), mas o CPM segue baixo. O criativo ainda está funcionando — não pause só pela frequência.`});
     }
   });
-  if(!tips.length) tips.push({t:'ok', txt:'Nenhum alerta. As campanhas estão dentro das réguas de CPM, CTR e custo por conversa.'});
-  document.getElementById('tips').innerHTML = tips.map(t=>
+  if(!tips.length) tips.push({t:'ok', txt:'Nenhum alerta nas campanhas com investimento neste período. CPM, CTR e custos dentro das réguas.'});
+  document.getElementById('tips').innerHTML = tips.slice(0,6).map(t=>
     `<li class="tip ${t.t}"><i>${t.t==='ok'?'✓':'!'}</i><span>${t.txt}</span></li>`
   ).join('');
 }
 
-function renderTable(CAMPANHAS){
-  document.getElementById('tbody').innerHTML = CAMPANHAS.map(c=>{
-    const s = saude(c), custo = c.conversas ? brl(c.spend/c.conversas) : '—';
+function renderTable(){
+  const p = DATA.periods[periodoSelecionado()];
+  const lista = (p.niveis && p.niveis[nivel]) || [];
+  document.getElementById('th-nome').textContent = ROTULO[nivel];
+  if(!lista.length){
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="8"><div class="empty">Nenhum ${ROTULO[nivel].toLowerCase()} com investimento neste período.</div></td></tr>`;
+    return;
+  }
+  document.getElementById('tbody').innerHTML = lista.map(c=>{
+    const s = saude(c);
     return `<tr>
       <td><div class="camp">
         <span class="pulse" style="background:${COR[s.n]}"></span>
         <span><span class="camp-name">${c.nome}</span>${s.n==='learn'?'<span class="tag">novo</span>':''}
-        <div class="camp-sub">${c.objetivo} · ${c.dias} dias no ar</div></span>
+        <div class="camp-sub">${c.sub || ''}</div></span>
       </div></td>
       <td class="num">${brl(c.spend)}</td>
-      <td class="num">${c.conversas}</td>
-      <td class="num">${custo}</td>
+      <td class="num">${int(c.cadastros)}</td>
+      <td class="num">${money(c.custoCadastro)}</td>
+      <td class="num">${int(c.linkClicks)}</td>
       <td class="num">${brl(c.cpm)}</td>
       <td class="num">${c.ctr.toFixed(2)}%</td>
-      <td class="num">${c.freq.toFixed(1)}</td>
       <td><span class="pill ${s.n==='learn'?'':s.n}">${s.label}</span></td>
     </tr>`;
   }).join('');
@@ -360,7 +390,7 @@ function sliceSerie(periodKey){
   const serie = DATA.diario || [];
   const hoje = new Date();
   if(periodKey === 'mes'){
-    const pref = hoje.toISOString().slice(0,7);          // 'YYYY-MM'
+    const pref = hoje.toISOString().slice(0,7);
     return serie.filter(d => (d.date||'').startsWith(pref));
   }
   const n = periodKey === '7' ? 7 : 30;
@@ -379,7 +409,7 @@ function renderChart(periodKey){
       datasets:[
         {type:'bar', label:'Investimento', data:serie.map(d=>d.spend), yAxisID:'y',
          backgroundColor:'#E3F1EC', hoverBackgroundColor:'#C9E3D9', borderRadius:5, barPercentage:.72},
-        {type:'line', label:'Custo por conversa', data:serie.map(d=>d.custoConversa), yAxisID:'y2',
+        {type:'line', label:'Custo por cadastro', data:serie.map(d=>d.custoCadastro), yAxisID:'y2',
          borderColor:'#0F6E56', backgroundColor:'#0F6E56', borderWidth:2, tension:.35,
          pointRadius:0, pointHoverRadius:4, spanGaps:true}
       ]
@@ -409,19 +439,20 @@ function renderChart(periodKey){
 
 function render(periodKey){
   const p = DATA.periods[periodKey];
-  const CAMPANHAS = p.campanhas || [];
+  const campanhas = (p.niveis && p.niveis.campanhas) || [];
   renderKPIs(p);
-  renderAlloc(CAMPANHAS);
-  renderTips(CAMPANHAS);
-  renderTable(CAMPANHAS);
+  renderAlloc(campanhas);   // alocação e sugestões sempre a nível de campanha
+  renderTips(campanhas);
+  renderTable();            // tabela segue o nível selecionado
   renderChart(periodKey);
 }
 
-/* Chips de período — agora recalculam de verdade, sem chamar a API */
 function periodoSelecionado(){
   const sel = document.querySelector('.chip[aria-selected="true"]');
   return sel ? sel.dataset.p : '30';
 }
+
+/* Chips de período — recalculam de verdade, sem chamar a API */
 document.querySelectorAll('.chip').forEach(chip=>{
   chip.addEventListener('click', ()=>{
     document.querySelectorAll('.chip').forEach(c=>c.removeAttribute('aria-selected'));
@@ -430,9 +461,18 @@ document.querySelectorAll('.chip').forEach(chip=>{
   });
 });
 
+/* Seletor de nível (campanha / conjunto / anúncio) */
+document.querySelectorAll('.lvl').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.lvl').forEach(b=>b.removeAttribute('aria-selected'));
+    btn.setAttribute('aria-selected','true');
+    nivel = btn.dataset.l;
+    if(DATA) renderTable();
+  });
+});
+
 /* =======================================================================
    CRIPTOGRAFIA — descriptografa no navegador (AES-GCM + PBKDF2)
-   compatível com o scripts/coleta.py
    ======================================================================= */
 function b64bytes(b64){
   const bin = atob(b64), out = new Uint8Array(bin.length);
@@ -453,33 +493,31 @@ async function decrypt(env, senha){
 /* =======================================================================
    CARREGAMENTO DOS DADOS + MODO DEMO
    ======================================================================= */
+let ENV = {};
 async function fetchEnv(nome){
   try{
     const r = await fetch('data/' + nome, {cache:'no-store'});
-    if(!r.ok) return null;              // 404 => arquivo ainda não existe
+    if(!r.ok) return null;
     return await r.json();
   }catch(e){ return null; }
 }
 
 function montarDados(campanhas, diario, meta){
-  DATA = {periods:campanhas, diario, meta, demo:false};
+  DATA = {periods:campanhas, diario, meta};
   document.getElementById('sync-time').textContent = meta.updated_label || '—';
   document.getElementById('demo-note').classList.remove('on');
   render(periodoSelecionado());
 }
 
 async function unlock(senha){
-  const [ec, ed, em] = [ENV.campanhas, ENV.diario, ENV.meta];
-  const campanhas = await decrypt(ec, senha);
-  const diario    = await decrypt(ed, senha);
-  const meta      = await decrypt(em, senha);
+  const campanhas = await decrypt(ENV.campanhas, senha);
+  const diario    = await decrypt(ENV.diario, senha);
+  const meta      = await decrypt(ENV.meta, senha);
   sessionStorage.setItem('dash_pass', senha);
-  document.getElementById('gate').classList.remove('on');
-  document.getElementById('gate').setAttribute('aria-hidden','true');
+  const g = document.getElementById('gate');
+  g.classList.remove('on'); g.setAttribute('aria-hidden','true');
   montarDados(campanhas, diario, meta);
 }
-
-let ENV = {};
 
 function abrirGate(){
   const gate = document.getElementById('gate');
@@ -489,26 +527,18 @@ function abrirGate(){
 
 document.getElementById('gate-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const btn = document.getElementById('gate-btn');
-  const err = document.getElementById('gate-err');
+  const btn = document.getElementById('gate-btn'), err = document.getElementById('gate-err');
   const senha = document.getElementById('gate-pass').value;
   err.textContent = ''; btn.disabled = true; btn.textContent = 'Verificando…';
-  try{
-    await unlock(senha);
-  }catch(ex){
-    err.textContent = 'Senha incorreta. Tente novamente.';
-    sessionStorage.removeItem('dash_pass');
-  }finally{
-    btn.disabled = false; btn.textContent = 'Entrar';
-  }
+  try{ await unlock(senha); }
+  catch(ex){ err.textContent = 'Senha incorreta. Tente novamente.'; sessionStorage.removeItem('dash_pass'); }
+  finally{ btn.disabled = false; btn.textContent = 'Entrar'; }
 });
 
 async function boot(){
   const [campanhas, diario, meta] = await Promise.all([
     fetchEnv('campanhas.json'), fetchEnv('diario.json'), fetchEnv('meta.json')
   ]);
-
-  // Algum arquivo faltando => coleta real ainda não rodou => modo demo.
   if(!campanhas || !diario || !meta){
     DATA = construirDemo();
     document.getElementById('sync-time').textContent = 'dados de exemplo';
@@ -516,8 +546,6 @@ async function boot(){
     render(periodoSelecionado());
     return;
   }
-
-  // Dados reais criptografados -> guarda envelopes e pede a senha.
   ENV = {campanhas, diario, meta};
   const salvo = sessionStorage.getItem('dash_pass');
   if(salvo){
@@ -528,70 +556,51 @@ async function boot(){
 }
 
 /* =======================================================================
-   DADOS FICTÍCIOS (modo demo) — só usados quando não há JSON real ainda
+   DADOS FICTÍCIOS (modo demo) — só quando não há JSON real ainda
    ======================================================================= */
 const DEMO_CAMPANHAS = [
-  {nome:'Mensagens — Agendamento',        objetivo:'Mensagens', spend:1980, conversas:168, cpm:3.20, ctr:1.62, freq:2.1, dias:24},
-  {nome:'Remarketing — Visitantes 30d',   objetivo:'Mensagens', spend:1140, conversas:104, cpm:4.40, ctr:1.48, freq:4.6, dias:31},
-  {nome:'Tráfego — Público frio',         objetivo:'Tráfego',   spend: 760, conversas: 32, cpm:5.90, ctr:0.71, freq:1.8, dias:18},
-  {nome:'Reconhecimento — Institucional', objetivo:'Alcance',   spend: 400, conversas:  8, cpm:6.30, ctr:0.64, freq:1.2, dias: 4}
+  {nome:'[LEADS] Santa Isabel', sub:'Cadastros',    spend:1980, cadastros:38, conversas:20, linkClicks:820, custoClique:2.41, custoCadastro:52, cpm:3.20, ctr:1.62, freq:2.1, dias:24},
+  {nome:'[Tráfego] Página E-book', sub:'Tráfego',   spend:1140, cadastros:22, conversas:12, linkClicks:640, custoClique:1.78, custoCadastro:51, cpm:4.40, ctr:1.48, freq:4.6, dias:31},
+  {nome:'[Tráfego] Análise de Perfil', sub:'Tráfego',spend:760, cadastros:9,  conversas:5,  linkClicks:300, custoClique:2.53, custoCadastro:84, cpm:5.90, ctr:0.71, freq:1.8, dias:18},
+  {nome:'[Reconhecimento] Institucional', sub:'Reconhecimento', spend:400, cadastros:2, conversas:1, linkClicks:120, custoClique:3.33, custoCadastro:200, cpm:6.30, ctr:0.64, freq:1.2, dias:4}
 ];
-
 function demoDiario(){
-  // 90 dias terminando hoje, padrão parecido com o do layout original.
   const serie = [], hoje = new Date();
   for(let k=89;k>=0;k--){
-    const dt = new Date(hoje); dt.setDate(dt.getDate()-k);
-    const i = 89-k;
+    const dt = new Date(hoje); dt.setDate(dt.getDate()-k); const i = 89-k;
     const spend = +(110 + Math.sin(i/3)*38 + (i%7)*4).toFixed(2);
-    const cc    = +(11 + Math.cos(i/4)*3.4 + (i%5)*0.4).toFixed(2);
-    const conv  = Math.max(1, Math.round(spend/cc));
-    serie.push({date: dt.toISOString().slice(0,10), spend, conversas:conv,
-      custoConversa:+(spend/conv).toFixed(2), clicks: Math.round(spend*0.43)});
+    const cad = Math.max(1, Math.round(spend/55));
+    serie.push({date: dt.toISOString().slice(0,10), spend, cadastros:cad,
+      linkClicks:Math.round(spend*0.43), pageViews:Math.round(spend*0.9),
+      custoCadastro:+(spend/cad).toFixed(2)});
   }
   return serie;
 }
-
 function agrega(serie){
-  const spend = serie.reduce((s,d)=>s+d.spend,0);
-  const conversas = serie.reduce((s,d)=>s+d.conversas,0);
-  const clicks = serie.reduce((s,d)=>s+d.clicks,0);
-  const impressions = Math.round(spend/4.1*1000);
-  return {
-    spend:+spend.toFixed(2), conversas, clicks,
-    custoConversa: conversas ? +(spend/conversas).toFixed(2) : null,
+  const s = k=>serie.reduce((a,d)=>a+(d[k]||0),0);
+  const spend=+s('spend').toFixed(2), cad=s('cadastros'), clk=s('linkClicks'), pv=s('pageViews');
+  const impressions=Math.round(spend/4.1*1000);
+  return {spend, cadastros:cad, custoCadastro:cad?+(spend/cad).toFixed(2):null,
+    pageViews:pv, custoPageView:pv?+(spend/pv).toFixed(2):null,
+    linkClicks:clk, custoClique:clk?+(spend/clk).toFixed(2):null,
+    conversas:Math.round(cad*0.5), custoConversa:null,
     cpm:4.10, cpc:0.89, ctr:1.32, freq:2.4,
-    reach: Math.round(impressions/2.4), impressions
-  };
+    reach:Math.round(impressions/2.4), impressions};
 }
-
 function construirDemo(){
-  const serie = demoDiario();
-  const hoje = new Date();
-  const prefMes = hoje.toISOString().slice(0,7);
-  const janela = (n)=>{ const c=new Date(hoje); c.setDate(c.getDate()-(n-1));
-    return serie.filter(d=>d.date >= c.toISOString().slice(0,10)); };
-  const janelaMes = serie.filter(d=>d.date.startsWith(prefMes));
-
-  const escala = (base, fator)=> base.map(c=>({...c,
-    spend:+(c.spend*fator).toFixed(0), conversas:Math.round(c.conversas*fator)}));
-
-  function periodo(sliceAtual, slicePrev, campanhas){
-    const kpis = agrega(sliceAtual);
-    const prev = agrega(slicePrev);
-    return {kpis, prev:{spend:prev.spend, conversas:prev.conversas,
-      custoConversa:prev.custoConversa, clicks:prev.clicks}, campanhas};
-  }
-  const prev7  = serie.slice(-14,-7), prev30 = serie.slice(-60,-30);
-  const prevMesLen = janelaMes.length;
-  const prevMes = serie.slice(-(prevMesLen*2), -prevMesLen);
-
-  return {demo:true, diario:serie, meta:{updated_label:'dados de exemplo'},
-    periods:{
-      '7':   periodo(janela(7),  prev7,  escala(DEMO_CAMPANHAS, 0.25)),
-      '30':  periodo(janela(30), prev30, DEMO_CAMPANHAS),
-      'mes': periodo(janelaMes,  prevMes, escala(DEMO_CAMPANHAS, Math.max(0.2, janelaMes.length/30)))
-    }};
+  const serie = demoDiario(), hoje = new Date();
+  const jan = n=>{ const c=new Date(hoje); c.setDate(c.getDate()-(n-1)); return serie.filter(d=>d.date>=c.toISOString().slice(0,10)); };
+  const janMes = serie.filter(d=>d.date.startsWith(hoje.toISOString().slice(0,7)));
+  const esc = (f)=> DEMO_CAMPANHAS.map(c=>({...c, spend:+(c.spend*f).toFixed(0), cadastros:Math.round(c.cadastros*f), linkClicks:Math.round(c.linkClicks*f)}));
+  const per = (a, p, camp)=>{ const k=agrega(a), pv=agrega(p);
+    return {kpis:k, prev:{spend:pv.spend,cadastros:pv.cadastros,custoCadastro:pv.custoCadastro,pageViews:pv.pageViews,custoPageView:pv.custoPageView,linkClicks:pv.linkClicks,conversas:pv.conversas},
+      niveis:{campanhas:camp, conjuntos:camp.map(c=>({...c,sub:c.nome})), anuncios:camp.map(c=>({...c,sub:c.nome}))}}; };
+  const mesLen = janMes.length;
+  return {meta:{updated_label:'dados de exemplo'}, diario:serie, periods:{
+    '7':   per(jan(7),  serie.slice(-14,-7),  esc(0.25)),
+    '30':  per(jan(30), serie.slice(-60,-30), DEMO_CAMPANHAS),
+    'mes': per(janMes,  serie.slice(-(mesLen*2),-mesLen), esc(Math.max(0.2, mesLen/30)))
+  }};
 }
 
 boot();
