@@ -176,30 +176,37 @@ def d(date):
     return date.strftime("%Y-%m-%d")
 
 
+def _janela(since, until):
+    """Monta o dicionário de uma janela + o período anterior de igual tamanho."""
+    L = (until - since).days + 1
+    return {"since": since, "until": until,
+            "prev_since": since - timedelta(days=L), "prev_until": since - timedelta(days=1)}
+
+
 def periodos_def():
-    """Janelas alinhadas aos presets do Gerenciador de Anúncios, para os números
-    baterem com o que a gestora vê lá:
-       7 dias  -> last_7d   (exclui hoje, igual ao "Últimos 7 dias")
-       30 dias -> last_30d  (exclui hoje, igual ao "Últimos 30 dias")
-       Mês     -> this_month (do dia 1 até hoje, igual ao "Este mês")
-    'anterior' é um intervalo explícito só para calcular a variação (%)."""
+    """Presets estilo Gerenciador de Anúncios (fuso da conta, UTC-3). As janelas
+    'Últimos N dias' excluem hoje (igual à Meta); 'Hoje'/'Ontem' são explícitas.
+    Cada período traz também o intervalo anterior, de igual tamanho, p/ a variação."""
     hoje = hoje_sp()
     ontem = hoje - timedelta(days=1)
     ini_mes = hoje.replace(day=1)
-    dias_elapsed = (hoje - ini_mes).days
     fim_mes_ant = ini_mes - timedelta(days=1)
     ini_mes_ant = fim_mes_ant.replace(day=1)
-    prev_mes = (ini_mes_ant, min(ini_mes_ant + timedelta(days=dias_elapsed), fim_mes_ant))
-    # 'atual' = datas explícitas equivalentes ao preset (usadas na coleta do Instagram,
-    # que não aceita date_preset).
-    return {
-        "7":   {"preset": "last_7d",    "atual": (ontem - timedelta(days=6), ontem),
-                "anterior": (hoje - timedelta(days=14), hoje - timedelta(days=8))},
-        "30":  {"preset": "last_30d",   "atual": (ontem - timedelta(days=29), ontem),
-                "anterior": (hoje - timedelta(days=60), hoje - timedelta(days=31))},
-        "mes": {"preset": "this_month", "atual": (ini_mes, hoje),
-                "anterior": prev_mes},
-    }
+
+    presets = [
+        ("hoje",        "Hoje",             hoje,                        hoje),
+        ("ontem",       "Ontem",            ontem,                       ontem),
+        ("hoje_ontem",  "Hoje e ontem",     ontem,                       hoje),
+        ("3d",          "Últimos 3 dias",   hoje - timedelta(days=3),    ontem),
+        ("7d",          "Últimos 7 dias",   hoje - timedelta(days=7),    ontem),
+        ("14d",         "Últimos 14 dias",  hoje - timedelta(days=14),   ontem),
+        ("30d",         "Últimos 30 dias",  hoje - timedelta(days=30),   ontem),
+        ("mes",         "Este mês",         ini_mes,                     hoje),
+        ("mes_passado", "Mês passado",      ini_mes_ant,                 fim_mes_ant),
+        ("max",         "Máximo (90 dias)", hoje - timedelta(days=89),   hoje),
+    ]
+    return {key: {"label": label, **_janela(since, until)}
+            for key, label, since, until in presets}
 
 
 # Publicações turbinadas: o Meta nomeia automaticamente com estes padrões.
@@ -297,14 +304,13 @@ def kpis_conta(rows):
     }
 
 
-def insights(level, preset=None, since=None, until=None, extra_fields=""):
+def insights(level, since, until, extra_fields=""):
     fields = INSIGHT_FIELDS + (("," + extra_fields) if extra_fields else "")
-    params = {"level": level, "fields": fields, "limit": 500}
-    if preset:
-        params["date_preset"] = preset
-    else:
-        params["time_range"] = json.dumps({"since": d(since), "until": d(until)})
-    return graph_get(f"{AD_ACCOUNT}/insights", params)
+    return graph_get(f"{AD_ACCOUNT}/insights", {
+        "level": level, "fields": fields,
+        "time_range": json.dumps({"since": d(since), "until": d(until)}),
+        "limit": 500,
+    })
 
 
 def split_por_tipo(camp_rows, meta_camp):
@@ -327,18 +333,18 @@ def split_por_tipo(camp_rows, meta_camp):
 
 
 def periodo(pdef, meta_camp, meta_adset, meta_ad):
-    preset = pdef["preset"]
-    pi, pf = pdef["anterior"]
+    ai, af = pdef["since"], pdef["until"]
+    pi, pf = pdef["prev_since"], pdef["prev_until"]
 
-    kpis = kpis_conta(insights("account", preset=preset))
-    prev_full = kpis_conta(insights("account", since=pi, until=pf))
+    kpis = kpis_conta(insights("account", ai, af))
+    prev_full = kpis_conta(insights("account", pi, pf))
     prev = {k: prev_full[k] for k in
             ("spend", "cadastros", "custoCadastro", "pageViews",
              "custoPageView", "linkClicks", "conversas")}
 
-    camp_rows = insights("campaign", preset=preset, extra_fields="campaign_id,campaign_name")
-    adset_rows = insights("adset", preset=preset, extra_fields="adset_id,adset_name,campaign_name")
-    ad_rows = insights("ad", preset=preset, extra_fields="ad_id,ad_name,adset_name,campaign_name")
+    camp_rows = insights("campaign", ai, af, "campaign_id,campaign_name")
+    adset_rows = insights("adset", ai, af, "adset_id,adset_name,campaign_name")
+    ad_rows = insights("ad", ai, af, "ad_id,ad_name,adset_name,campaign_name")
 
     campanhas = tabela(camp_rows, "campaign_id", "campaign_name", meta_camp,
                        lambda r, m: m.get("objetivo", "—"),
@@ -350,18 +356,20 @@ def periodo(pdef, meta_camp, meta_adset, meta_ad):
                       lambda r, m: r.get("campaign_name", ""),
                       lambda r, m: r.get("campaign_name"))
 
-    return {"kpis": kpis, "prev": prev,
+    return {"label": pdef["label"], "since": d(ai), "until": d(af),
+            "kpis": kpis, "prev": prev,
             "split": split_por_tipo(camp_rows, meta_camp),
             "niveis": {"campanhas": campanhas, "conjuntos": conjuntos, "anuncios": anuncios}}
 
 
 def serie_diaria():
-    # 90 dias terminando ONTEM (o dia de hoje ainda está consolidando no Meta).
-    ontem = hoje_sp() - timedelta(days=1)
-    since = ontem - timedelta(days=89)
+    # 90 dias incluindo hoje (para os presets curtos como "Hoje" terem ponto no gráfico;
+    # o dia corrente ainda está consolidando no Meta — o rodapé avisa isso).
+    hoje = hoje_sp()
+    since = hoje - timedelta(days=89)
     rows = graph_get(f"{AD_ACCOUNT}/insights", {
         "level": "account", "fields": INSIGHT_FIELDS,
-        "time_range": json.dumps({"since": d(since), "until": d(ontem)}),
+        "time_range": json.dumps({"since": d(since), "until": d(hoje)}),
         "time_increment": 1, "limit": 500,
     })
     serie = []
@@ -434,15 +442,15 @@ def ig_totais(ig_id, since_d, until_d):
 
 
 def coletar_instagram(ig_id, pdef, spend_periodo):
-    def novos(janela):
+    def novos(since_d, until_d):
         try:
-            return ig_novos_seguidores(ig_id, *janela)
+            return ig_novos_seguidores(ig_id, since_d, until_d)
         except MetaError as e:
             print(f"  (follower_count indisponível: {str(e)[:140]})", file=sys.stderr)
             return None
-    n = novos(pdef["atual"])
-    prev = novos(pdef["anterior"])
-    t = ig_totais(ig_id, *pdef["atual"])
+    n = novos(pdef["since"], pdef["until"])
+    prev = novos(pdef["prev_since"], pdef["prev_until"])
+    t = ig_totais(ig_id, pdef["since"], pdef["until"])
     return {
         "novosSeguidores": n,
         "prevNovos": prev,

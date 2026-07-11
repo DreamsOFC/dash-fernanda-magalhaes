@@ -28,12 +28,18 @@ h1{font-family:"Space Grotesk",sans-serif;font-size:28px;font-weight:500;letter-
 .sync{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
 
-/* period chips */
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:24px}
-.chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 15px;font-size:13.5px;color:var(--muted);cursor:pointer;font-family:inherit;transition:.15s}
-.chip:hover{border-color:#CFD4D1;color:var(--ink)}
-.chip[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
-.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* seletor de período (dropdown estilo Meta) */
+.period{position:relative;margin-bottom:24px;display:inline-block}
+.period-btn{display:flex;align-items:center;gap:14px;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-family:inherit;font-size:14px;color:var(--ink);cursor:pointer;transition:.15s;min-width:200px}
+.period-btn:hover{border-color:#CFD4D1}
+.period-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.period-btn .chev{color:var(--muted);font-size:11px;transition:transform .15s}
+.period-btn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.period-menu{position:absolute;top:calc(100% + 6px);left:0;z-index:30;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px;min-width:230px;box-shadow:0 10px 40px rgba(22,25,28,.10);display:none;max-height:360px;overflow:auto}
+.period-menu.on{display:block}
+.period-opt{display:block;width:100%;text-align:left;background:none;border:none;font-family:inherit;font-size:14px;color:var(--ink);padding:9px 12px;border-radius:8px;cursor:pointer}
+.period-opt:hover{background:var(--bg)}
+.period-opt[aria-selected="true"]{background:var(--ink);color:#fff}
 
 /* cards */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
@@ -198,10 +204,12 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
 
   <div class="demo-note" id="demo-note"><span>●</span> Dados de exemplo — a coleta real ainda não rodou</div>
 
-  <div class="chips" role="tablist" aria-label="Período">
-    <button class="chip" role="tab" data-p="7">7 dias</button>
-    <button class="chip" role="tab" data-p="30" aria-selected="true">30 dias</button>
-    <button class="chip" role="tab" data-p="mes">Mês atual</button>
+  <div class="period">
+    <button class="period-btn" id="period-btn" aria-haspopup="listbox" aria-expanded="false">
+      <span id="period-label">Últimos 30 dias</span>
+      <span class="chev">▼</span>
+    </button>
+    <div class="period-menu" id="period-menu" role="listbox" aria-label="Período"></div>
   </div>
 
   <!-- KPIs primários -->
@@ -486,18 +494,11 @@ function renderTable(){
   }).join('');
 }
 
-/* Recorta a série diária de 90 dias para o período selecionado */
+/* Recorta a série diária para o intervalo do período selecionado */
 function sliceSerie(periodKey){
-  const serie = DATA.diario || [];
-  const hoje = new Date();
-  if(periodKey === 'mes'){
-    const pref = hoje.toISOString().slice(0,7);
-    return serie.filter(d => (d.date||'').startsWith(pref));
-  }
-  const n = periodKey === '7' ? 7 : 30;
-  const corte = new Date(hoje); corte.setDate(corte.getDate() - (n-1));
-  const cutISO = corte.toISOString().slice(0,10);
-  return serie.filter(d => (d.date||'') >= cutISO);
+  const p = DATA.periods[periodKey], serie = DATA.diario || [];
+  if(!p || !p.since) return serie.slice(-30);
+  return serie.filter(d => (d.date||'') >= p.since && (d.date||'') <= p.until);
 }
 
 function renderChart(periodKey){
@@ -549,19 +550,42 @@ function render(periodKey){
   renderChart(periodKey);
 }
 
-function periodoSelecionado(){
-  const sel = document.querySelector('.chip[aria-selected="true"]');
-  return sel ? sel.dataset.p : '30';
-}
+/* Seletor de período (dropdown estilo Meta), montado a partir dos dados */
+let periodAtual = '30d';
+function periodoSelecionado(){ return periodAtual; }
 
-/* Chips de período — recalculam de verdade, sem chamar a API */
-document.querySelectorAll('.chip').forEach(chip=>{
-  chip.addEventListener('click', ()=>{
-    document.querySelectorAll('.chip').forEach(c=>c.removeAttribute('aria-selected'));
-    chip.setAttribute('aria-selected','true');
-    if(DATA) render(chip.dataset.p);
-  });
+function atualizarLabelPeriodo(){
+  const p = DATA && DATA.periods[periodAtual];
+  document.getElementById('period-label').textContent = p ? (p.label || periodAtual) : '—';
+}
+function montarMenuPeriodos(){
+  document.getElementById('period-menu').innerHTML = Object.entries(DATA.periods).map(([k,p])=>
+    `<button class="period-opt" role="option" data-p="${k}"${k===periodAtual?' aria-selected="true"':''}>${p.label || k}</button>`).join('');
+  atualizarLabelPeriodo();
+}
+function abrirMenu(on){
+  document.getElementById('period-menu').classList.toggle('on', on);
+  document.getElementById('period-btn').setAttribute('aria-expanded', on ? 'true' : 'false');
+}
+function iniciarUI(){
+  if(!DATA.periods[periodAtual])
+    periodAtual = DATA.periods['30d'] ? '30d' : Object.keys(DATA.periods)[0];
+  montarMenuPeriodos();
+  render(periodAtual);
+}
+document.getElementById('period-btn').addEventListener('click', e=>{
+  e.stopPropagation();
+  abrirMenu(!document.getElementById('period-menu').classList.contains('on'));
 });
+document.getElementById('period-menu').addEventListener('click', e=>{
+  const opt = e.target.closest('.period-opt'); if(!opt) return;
+  periodAtual = opt.dataset.p;
+  document.querySelectorAll('.period-opt').forEach(x=>x.removeAttribute('aria-selected'));
+  opt.setAttribute('aria-selected','true');
+  atualizarLabelPeriodo(); abrirMenu(false);
+  if(DATA) render(periodAtual);
+});
+document.addEventListener('click', ()=>abrirMenu(false));
 
 /* Seletor de nível (campanha / conjunto / anúncio) */
 document.querySelectorAll('.lvl').forEach(btn=>{
@@ -646,7 +670,7 @@ function montarDados(campanhas, diario, meta){
   DATA = {periods:campanhas, diario, meta};
   document.getElementById('sync-time').textContent = meta.updated_label || '—';
   document.getElementById('demo-note').classList.remove('on');
-  render(periodoSelecionado());
+  iniciarUI();
 }
 
 async function unlock(senha){
@@ -683,7 +707,7 @@ async function boot(){
     DATA = construirDemo();
     document.getElementById('sync-time').textContent = 'dados de exemplo';
     document.getElementById('demo-note').classList.add('on');
-    render(periodoSelecionado());
+    iniciarUI();
     return;
   }
   ENV = {campanhas, diario, meta};
@@ -729,17 +753,27 @@ function agrega(serie){
 }
 function construirDemo(){
   const serie = demoDiario(), hoje = new Date();
-  const jan = n=>{ const c=new Date(hoje); c.setDate(c.getDate()-(n-1)); return serie.filter(d=>d.date>=c.toISOString().slice(0,10)); };
-  const janMes = serie.filter(d=>d.date.startsWith(hoje.toISOString().slice(0,7)));
-  const esc = (f)=> DEMO_CAMPANHAS.map(c=>({...c, spend:+(c.spend*f).toFixed(0), cadastros:Math.round(c.cadastros*f), linkClicks:Math.round(c.linkClicks*f)}));
-  const per = (a, p, camp)=>{ const k=agrega(a), pv=agrega(p);
-    return {kpis:k, prev:{spend:pv.spend,cadastros:pv.cadastros,custoCadastro:pv.custoCadastro,pageViews:pv.pageViews,custoPageView:pv.custoPageView,linkClicks:pv.linkClicks,conversas:pv.conversas},
-      niveis:{campanhas:camp, conjuntos:camp.map(c=>({...c,sub:c.nome})), anuncios:camp.map(c=>({...c,sub:c.nome}))}}; };
-  const mesLen = janMes.length;
+  const iso = dt => dt.toISOString().slice(0,10);
+  const shift = n => { const c = new Date(hoje); c.setDate(c.getDate()+n); return iso(c); };
+  const esc = f => DEMO_CAMPANHAS.map(c=>({...c, spend:+(c.spend*f).toFixed(0), cadastros:Math.round(c.cadastros*f), linkClicks:Math.round(c.linkClicks*f)}));
+  function per(label, s, u, camp){
+    const slice = serie.filter(d=> d.date>=s && d.date<=u);
+    const L = slice.length || 1;
+    const sPrev = iso(new Date(new Date(s).getTime() - L*86400000));
+    const prevSlice = serie.filter(d=> d.date>=sPrev && d.date < s);
+    const k = agrega(slice), pv = agrega(prevSlice);
+    return {label, since:s, until:u, kpis:k,
+      prev:{spend:pv.spend,cadastros:pv.cadastros,custoCadastro:pv.custoCadastro,pageViews:pv.pageViews,custoPageView:pv.custoPageView,linkClicks:pv.linkClicks,conversas:pv.conversas},
+      niveis:{campanhas:camp, conjuntos:camp.map(c=>({...c,sub:c.nome})), anuncios:camp.map(c=>({...c,sub:c.nome}))}};
+  }
+  const t = iso(hoje), y = shift(-1), mes1 = iso(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
   return {meta:{updated_label:'dados de exemplo'}, diario:serie, periods:{
-    '7':   per(jan(7),  serie.slice(-14,-7),  esc(0.25)),
-    '30':  per(jan(30), serie.slice(-60,-30), DEMO_CAMPANHAS),
-    'mes': per(janMes,  serie.slice(-(mesLen*2),-mesLen), esc(Math.max(0.2, mesLen/30)))
+    'hoje':  per('Hoje', t, t, esc(0.05)),
+    'ontem': per('Ontem', y, y, esc(0.05)),
+    '7d':    per('Últimos 7 dias', shift(-7), y, esc(0.25)),
+    '30d':   per('Últimos 30 dias', shift(-30), y, DEMO_CAMPANHAS),
+    'mes':   per('Este mês', mes1, t, esc(0.6)),
+    'max':   per('Máximo (90 dias)', shift(-89), t, esc(1.4))
   }};
 }
 
