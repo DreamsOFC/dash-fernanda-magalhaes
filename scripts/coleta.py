@@ -175,23 +175,36 @@ def d(date):
     return date.strftime("%Y-%m-%d")
 
 
-def janelas():
+def periodos_def():
+    """Janelas alinhadas aos presets do Gerenciador de Anúncios, para os números
+    baterem com o que a gestora vê lá:
+       7 dias  -> last_7d   (exclui hoje, igual ao "Últimos 7 dias")
+       30 dias -> last_30d  (exclui hoje, igual ao "Últimos 30 dias")
+       Mês     -> this_month (do dia 1 até hoje, igual ao "Este mês")
+    'anterior' é um intervalo explícito só para calcular a variação (%)."""
     hoje = hoje_sp()
-    j7 = (hoje - timedelta(days=6), hoje)
-    p7 = (hoje - timedelta(days=13), hoje - timedelta(days=7))
-    j30 = (hoje - timedelta(days=29), hoje)
-    p30 = (hoje - timedelta(days=59), hoje - timedelta(days=30))
     ini_mes = hoje.replace(day=1)
-    dias_no_mes = (hoje - ini_mes).days
+    dias_elapsed = (hoje - ini_mes).days
     fim_mes_ant = ini_mes - timedelta(days=1)
     ini_mes_ant = fim_mes_ant.replace(day=1)
-    j_mes = (ini_mes, hoje)
-    p_mes = (ini_mes_ant, min(ini_mes_ant + timedelta(days=dias_no_mes), fim_mes_ant))
+    prev_mes = (ini_mes_ant, min(ini_mes_ant + timedelta(days=dias_elapsed), fim_mes_ant))
     return {
-        "7":   {"atual": j7,   "anterior": p7},
-        "30":  {"atual": j30,  "anterior": p30},
-        "mes": {"atual": j_mes, "anterior": p_mes},
+        "7":   {"preset": "last_7d",    "anterior": (hoje - timedelta(days=14), hoje - timedelta(days=8))},
+        "30":  {"preset": "last_30d",   "anterior": (hoje - timedelta(days=60), hoje - timedelta(days=31))},
+        "mes": {"preset": "this_month", "anterior": prev_mes},
     }
+
+
+# Publicações turbinadas: o Meta nomeia automaticamente com estes padrões.
+IMPULS_PADROES = (
+    "post do instagram", "publicação do instagram", "publicacao do instagram",
+    "publicação:", "publicacao:", "instagram post",
+)
+
+
+def eh_impulsionamento(nome):
+    n = (nome or "").lower()
+    return any(p in n for p in IMPULS_PADROES)
 
 
 # --------------------------------------------------------------------------
@@ -229,7 +242,7 @@ def ativos(edge, campos):
 # --------------------------------------------------------------------------
 # Montagem das tabelas por nível (só ativos com gasto no período)
 # --------------------------------------------------------------------------
-def tabela(rows, id_key, name_key, ativos_meta, subrotulo):
+def tabela(rows, id_key, name_key, ativos_meta, subrotulo, nome_camp):
     saida = []
     for r in rows:
         oid = r.get(id_key)
@@ -242,6 +255,7 @@ def tabela(rows, id_key, name_key, ativos_meta, subrotulo):
         saida.append({
             "nome": meta.get("nome") or r.get(name_key) or "Sem nome",
             "sub": subrotulo(r, meta),
+            "tipo": "imp" if eh_impulsionamento(nome_camp(r, meta)) else "camp",
             "spend": m["spend"],
             "cadastros": m["cadastros"],
             "custoCadastro": custo(m["spend"], m["cadastros"]),
@@ -274,46 +288,71 @@ def kpis_conta(rows):
     }
 
 
-def insights(level, since, until, extra_fields=""):
+def insights(level, preset=None, since=None, until=None, extra_fields=""):
     fields = INSIGHT_FIELDS + (("," + extra_fields) if extra_fields else "")
-    return graph_get(f"{AD_ACCOUNT}/insights", {
-        "level": level, "fields": fields,
-        "time_range": json.dumps({"since": d(since), "until": d(until)}),
-        "limit": 500,
-    })
+    params = {"level": level, "fields": fields, "limit": 500}
+    if preset:
+        params["date_preset"] = preset
+    else:
+        params["time_range"] = json.dumps({"since": d(since), "until": d(until)})
+    return graph_get(f"{AD_ACCOUNT}/insights", params)
 
 
-def periodo(janela, meta_camp, meta_adset, meta_ad):
-    ai, af = janela["atual"]
-    pi, pf = janela["anterior"]
+def split_por_tipo(camp_rows, meta_camp):
+    """Reparte o investimento entre publicações turbinadas e campanhas estruturadas.
+    Soma TODAS as campanhas com gasto no período (não só as ativas/top-N)."""
+    imp_spend = camp_spend = 0.0
+    imp_n = camp_n = 0
+    for r in camp_rows:
+        m = metricas(r)
+        if m["spend"] <= 0:
+            continue
+        meta = meta_camp.get(r.get("campaign_id")) or {}
+        nome = meta.get("nome") or r.get("campaign_name")
+        if eh_impulsionamento(nome):
+            imp_spend += m["spend"]; imp_n += 1
+        else:
+            camp_spend += m["spend"]; camp_n += 1
+    return {"impSpend": round(imp_spend, 2), "campSpend": round(camp_spend, 2),
+            "impCount": imp_n, "campCount": camp_n}
 
-    kpis = kpis_conta(insights("account", ai, af))
-    prev_full = kpis_conta(insights("account", pi, pf))
+
+def periodo(pdef, meta_camp, meta_adset, meta_ad):
+    preset = pdef["preset"]
+    pi, pf = pdef["anterior"]
+
+    kpis = kpis_conta(insights("account", preset=preset))
+    prev_full = kpis_conta(insights("account", since=pi, until=pf))
     prev = {k: prev_full[k] for k in
             ("spend", "cadastros", "custoCadastro", "pageViews",
              "custoPageView", "linkClicks", "conversas")}
 
-    camp_rows = insights("campaign", ai, af, "campaign_id,campaign_name")
-    adset_rows = insights("adset", ai, af, "adset_id,adset_name,campaign_name")
-    ad_rows = insights("ad", ai, af, "ad_id,ad_name,adset_name,campaign_name")
+    camp_rows = insights("campaign", preset=preset, extra_fields="campaign_id,campaign_name")
+    adset_rows = insights("adset", preset=preset, extra_fields="adset_id,adset_name,campaign_name")
+    ad_rows = insights("ad", preset=preset, extra_fields="ad_id,ad_name,adset_name,campaign_name")
 
     campanhas = tabela(camp_rows, "campaign_id", "campaign_name", meta_camp,
-                       lambda r, m: m.get("objetivo", "—"))
+                       lambda r, m: m.get("objetivo", "—"),
+                       lambda r, m: m.get("nome") or r.get("campaign_name"))
     conjuntos = tabela(adset_rows, "adset_id", "adset_name", meta_adset,
-                       lambda r, m: r.get("campaign_name", ""))
+                       lambda r, m: r.get("campaign_name", ""),
+                       lambda r, m: r.get("campaign_name"))
     anuncios = tabela(ad_rows, "ad_id", "ad_name", meta_ad,
-                      lambda r, m: r.get("campaign_name", ""))
+                      lambda r, m: r.get("campaign_name", ""),
+                      lambda r, m: r.get("campaign_name"))
 
     return {"kpis": kpis, "prev": prev,
+            "split": split_por_tipo(camp_rows, meta_camp),
             "niveis": {"campanhas": campanhas, "conjuntos": conjuntos, "anuncios": anuncios}}
 
 
 def serie_diaria():
-    hoje = hoje_sp()
-    since = hoje - timedelta(days=89)
+    # 90 dias terminando ONTEM (o dia de hoje ainda está consolidando no Meta).
+    ontem = hoje_sp() - timedelta(days=1)
+    since = ontem - timedelta(days=89)
     rows = graph_get(f"{AD_ACCOUNT}/insights", {
         "level": "account", "fields": INSIGHT_FIELDS,
-        "time_range": json.dumps({"since": d(since), "until": d(hoje)}),
+        "time_range": json.dumps({"since": d(since), "until": d(ontem)}),
         "time_increment": 1, "limit": 500,
     })
     serie = []
@@ -384,9 +423,9 @@ def main():
 
     # 2) Períodos (toda a coleta em memória; erro aqui aborta antes de escrever).
     campanhas_out = {}
-    for chave, jan in janelas().items():
+    for chave, pdef in periodos_def().items():
         print(f"  período '{chave}' ...")
-        campanhas_out[chave] = periodo(jan, meta_camp, meta_adset, meta_ad)
+        campanhas_out[chave] = periodo(pdef, meta_camp, meta_adset, meta_ad)
 
     print("  série diária (90 dias) ...")
     diario = serie_diaria()

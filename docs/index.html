@@ -41,14 +41,20 @@ h1{font-family:"Space Grotesk",sans-serif;font-size:28px;font-weight:500;letter-
 .card-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
 .card-title{font-size:13px;font-weight:500;color:var(--muted)}
 
-/* alocação — elemento assinatura */
-.alloc-bar{display:flex;gap:3px;height:44px;margin-bottom:14px}
-.alloc-seg{border-radius:6px;position:relative;cursor:default;transition:.2s;min-width:14px}
-.alloc-seg:hover{filter:brightness(.94)}
-.alloc-legend{display:flex;flex-wrap:wrap;gap:6px 20px}
-.alloc-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
-.alloc-key{width:9px;height:9px;border-radius:3px;flex:none}
-.alloc-item b{color:var(--ink);font-weight:500}
+/* distribuição de investimento — ranking com barras horizontais */
+.dist-summary{display:flex;flex-wrap:wrap;gap:10px 24px;margin-bottom:20px;
+  padding-bottom:16px;border-bottom:1px solid var(--line)}
+.dist-sum{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.dist-sum .key{width:10px;height:10px;border-radius:3px;flex:none}
+.dist-sum b{color:var(--ink);font-weight:500}
+.dist{display:flex;flex-direction:column;gap:14px}
+.dist-row{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:baseline}
+.dist-name{font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dist-name .mini-tag{font-size:10.5px;color:var(--faint);margin-left:7px;text-transform:uppercase;letter-spacing:.04em}
+.dist-val{font-size:13px;color:var(--faint);white-space:nowrap}
+.dist-val b{color:var(--ink);font-weight:500;font-family:"Space Grotesk";font-variant-numeric:tabular-nums;margin-right:6px}
+.dist-track{grid-column:1/-1;height:7px;background:var(--bg);border-radius:999px;overflow:hidden}
+.dist-fill{height:100%;border-radius:999px;transition:width .3s}
 
 /* kpis */
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:16px 0}
@@ -93,6 +99,7 @@ td:first-child{text-align:left;padding-right:20px;white-space:normal}
 .camp-name{font-weight:500}
 .camp-sub{font-size:12px;color:var(--faint)}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:500;margin-left:6px;vertical-align:1px}
+.tag.turbo{background:#EEF0EF;color:#6B7580}
 .pill{display:inline-block;padding:3px 9px;border-radius:7px;font-weight:500}
 .pill.ok{background:var(--ok-bg);color:var(--ok)}
 .pill.warn{background:var(--warn-bg);color:var(--warn)}
@@ -206,8 +213,8 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
   <!-- Elemento assinatura: para onde vai o dinheiro -->
   <div class="card" style="margin-top:16px">
     <div class="card-title">Para onde foi o investimento</div>
-    <div class="alloc-bar" id="alloc-bar"></div>
-    <div class="alloc-legend" id="alloc-legend"></div>
+    <div class="dist-summary" id="dist-summary"></div>
+    <div class="dist" id="dist"></div>
   </div>
 
   <!-- Sugestões -->
@@ -311,24 +318,39 @@ function renderKPIs(p){
   document.getElementById('m-impr').textContent       = int(k.impressions);
 }
 
-function renderAlloc(lista){
-  const total = lista.reduce((s,c)=>s+c.spend,0) || 1;
-  const bar = document.getElementById('alloc-bar');
-  const leg = document.getElementById('alloc-legend');
-  bar.innerHTML = ''; leg.innerHTML = '';
-  lista.slice(0,8).forEach(c=>{
-    const s = saude(c), pct = c.spend/total*100;
-    const seg = document.createElement('div');
-    seg.className = 'alloc-seg';
-    seg.style.cssText = `flex:${c.spend};background:${COR[s.n]}`;
-    seg.title = `${c.nome} — ${brl(c.spend)} (${pct.toFixed(0)}%)`;
-    bar.appendChild(seg);
-    const item = document.createElement('div');
-    item.className = 'alloc-item';
-    item.innerHTML = `<span class="alloc-key" style="background:${COR[s.n]}"></span>
-      <span><b>${c.nome}</b> · ${brl(c.spend)} <span class="num">(${pct.toFixed(0)}%)</span></span>`;
-    leg.appendChild(item);
-  });
+/* Cores por tipo de investimento */
+const TIPO_COR = {camp:'#0F6E56', imp:'#8A94A6'};
+
+function renderDist(lista, split){
+  // Se não veio o split calculado (modo demo), deriva da própria lista.
+  if(!split){
+    split = {impSpend:0, campSpend:0, impCount:0, campCount:0};
+    lista.forEach(c=>{
+      if(c.tipo === 'imp'){ split.impSpend += c.spend; split.impCount++; }
+      else { split.campSpend += c.spend; split.campCount++; }
+    });
+  }
+  const total = (split.impSpend + split.campSpend) || 1;
+  const pct = v => Math.round(v/total*100);
+
+  document.getElementById('dist-summary').innerHTML = `
+    <div class="dist-sum"><span class="key" style="background:${TIPO_COR.camp}"></span>
+      <span>Campanhas estruturadas · <b>${brl(split.campSpend)}</b>
+      <span class="num">(${pct(split.campSpend)}%)</span> · ${split.campCount}</span></div>
+    <div class="dist-sum"><span class="key" style="background:${TIPO_COR.imp}"></span>
+      <span>Publicações turbinadas · <b>${brl(split.impSpend)}</b>
+      <span class="num">(${pct(split.impSpend)}%)</span> · ${split.impCount}</span></div>`;
+
+  const top = lista.slice(0, 7);
+  const max = top.length ? top[0].spend : 1;
+  document.getElementById('dist').innerHTML = top.map(c=>{
+    const cor = TIPO_COR[c.tipo] || TIPO_COR.camp;
+    return `<div class="dist-row">
+      <div class="dist-name">${c.nome}${c.tipo==='imp'?'<span class="mini-tag">turbinado</span>':''}</div>
+      <div class="dist-val"><b>${brl(c.spend)}</b>${(c.spend/total*100).toFixed(0)}%</div>
+      <div class="dist-track"><div class="dist-fill" style="width:${(c.spend/max*100).toFixed(1)}%;background:${cor}"></div></div>
+    </div>`;
+  }).join('');
 }
 
 function renderTips(lista){
@@ -371,7 +393,7 @@ function renderTable(){
     return `<tr>
       <td><div class="camp">
         <span class="pulse" style="background:${COR[s.n]}"></span>
-        <span><span class="camp-name">${c.nome}</span>${s.n==='learn'?'<span class="tag">novo</span>':''}
+        <span><span class="camp-name">${c.nome}</span>${s.n==='learn'?'<span class="tag">novo</span>':''}${c.tipo==='imp'?'<span class="tag turbo">turbinado</span>':''}
         <div class="camp-sub">${c.sub || ''}</div></span>
       </div></td>
       <td class="num">${brl(c.spend)}</td>
@@ -441,7 +463,7 @@ function render(periodKey){
   const p = DATA.periods[periodKey];
   const campanhas = (p.niveis && p.niveis.campanhas) || [];
   renderKPIs(p);
-  renderAlloc(campanhas);   // alocação e sugestões sempre a nível de campanha
+  renderDist(campanhas, p.split);   // distribuição e sugestões sempre a nível de campanha
   renderTips(campanhas);
   renderTable();            // tabela segue o nível selecionado
   renderChart(periodKey);
@@ -559,10 +581,10 @@ async function boot(){
    DADOS FICTÍCIOS (modo demo) — só quando não há JSON real ainda
    ======================================================================= */
 const DEMO_CAMPANHAS = [
-  {nome:'[LEADS] Santa Isabel', sub:'Cadastros',    spend:1980, cadastros:38, conversas:20, linkClicks:820, custoClique:2.41, custoCadastro:52, cpm:3.20, ctr:1.62, freq:2.1, dias:24},
-  {nome:'[Tráfego] Página E-book', sub:'Tráfego',   spend:1140, cadastros:22, conversas:12, linkClicks:640, custoClique:1.78, custoCadastro:51, cpm:4.40, ctr:1.48, freq:4.6, dias:31},
-  {nome:'[Tráfego] Análise de Perfil', sub:'Tráfego',spend:760, cadastros:9,  conversas:5,  linkClicks:300, custoClique:2.53, custoCadastro:84, cpm:5.90, ctr:0.71, freq:1.8, dias:18},
-  {nome:'[Reconhecimento] Institucional', sub:'Reconhecimento', spend:400, cadastros:2, conversas:1, linkClicks:120, custoClique:3.33, custoCadastro:200, cpm:6.30, ctr:0.64, freq:1.2, dias:4}
+  {nome:'[LEADS] Santa Isabel', sub:'Cadastros', tipo:'camp',    spend:1980, cadastros:38, conversas:20, linkClicks:820, custoClique:2.41, custoCadastro:52, cpm:3.20, ctr:1.62, freq:2.1, dias:24},
+  {nome:'[Tráfego] Página E-book', sub:'Tráfego', tipo:'camp',   spend:1140, cadastros:22, conversas:12, linkClicks:640, custoClique:1.78, custoCadastro:51, cpm:4.40, ctr:1.48, freq:4.6, dias:31},
+  {nome:'Post do Instagram: Eu penso diferente…', sub:'Tráfego', tipo:'imp', spend:760, cadastros:9, conversas:5, linkClicks:300, custoClique:2.53, custoCadastro:84, cpm:5.90, ctr:0.71, freq:1.8, dias:18},
+  {nome:'[Reconhecimento] Institucional', sub:'Reconhecimento', tipo:'camp', spend:400, cadastros:2, conversas:1, linkClicks:120, custoClique:3.33, custoCadastro:200, cpm:6.30, ctr:0.64, freq:1.2, dias:4}
 ];
 function demoDiario(){
   const serie = [], hoje = new Date();
