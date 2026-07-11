@@ -183,15 +183,21 @@ def periodos_def():
        Mês     -> this_month (do dia 1 até hoje, igual ao "Este mês")
     'anterior' é um intervalo explícito só para calcular a variação (%)."""
     hoje = hoje_sp()
+    ontem = hoje - timedelta(days=1)
     ini_mes = hoje.replace(day=1)
     dias_elapsed = (hoje - ini_mes).days
     fim_mes_ant = ini_mes - timedelta(days=1)
     ini_mes_ant = fim_mes_ant.replace(day=1)
     prev_mes = (ini_mes_ant, min(ini_mes_ant + timedelta(days=dias_elapsed), fim_mes_ant))
+    # 'atual' = datas explícitas equivalentes ao preset (usadas na coleta do Instagram,
+    # que não aceita date_preset).
     return {
-        "7":   {"preset": "last_7d",    "anterior": (hoje - timedelta(days=14), hoje - timedelta(days=8))},
-        "30":  {"preset": "last_30d",   "anterior": (hoje - timedelta(days=60), hoje - timedelta(days=31))},
-        "mes": {"preset": "this_month", "anterior": prev_mes},
+        "7":   {"preset": "last_7d",    "atual": (ontem - timedelta(days=6), ontem),
+                "anterior": (hoje - timedelta(days=14), hoje - timedelta(days=8))},
+        "30":  {"preset": "last_30d",   "atual": (ontem - timedelta(days=29), ontem),
+                "anterior": (hoje - timedelta(days=60), hoje - timedelta(days=31))},
+        "mes": {"preset": "this_month", "atual": (ini_mes, hoje),
+                "anterior": prev_mes},
     }
 
 
@@ -371,6 +377,73 @@ def serie_diaria():
 
 
 # --------------------------------------------------------------------------
+# Instagram orgânico (perfil + seguidores) — opcional, não aborta a coleta
+# --------------------------------------------------------------------------
+def ts_sp(date):
+    """Meia-noite (São Paulo) da data, em timestamp Unix — usado pelo IG insights."""
+    return int(datetime(date.year, date.month, date.day, tzinfo=SAO_PAULO).timestamp())
+
+
+def instagram_conta():
+    """Descobre a conta de Instagram vinculada à Página. Retorna (id, username, seguidores)."""
+    pages = graph_get("me/accounts", {
+        "fields": "name,instagram_business_account{id,username,followers_count}", "limit": 50})
+    for p in pages:
+        iga = p.get("instagram_business_account")
+        if iga and iga.get("id"):
+            return iga["id"], iga.get("username"), int(iga.get("followers_count") or 0)
+    return None, None, 0
+
+
+def ig_novos_seguidores(ig_id, since_d, until_d):
+    """Soma de novos seguidores no intervalo (a API limita a 30 dias por chamada)."""
+    total = 0
+    cur = since_d
+    while cur <= until_d:
+        fim = min(cur + timedelta(days=29), until_d)
+        res = graph_get(f"{ig_id}/insights", {
+            "metric": "follower_count", "period": "day",
+            "since": ts_sp(cur), "until": ts_sp(fim + timedelta(days=1))})
+        if res:
+            for v in res[0].get("values", []):
+                total += int(v.get("value") or 0)
+        cur = fim + timedelta(days=1)
+    return total
+
+
+def ig_totais(ig_id, since_d, until_d):
+    """Visitas ao perfil, alcance orgânico e toques no link do site no intervalo."""
+    out = {"profileViews": 0, "reachOrg": 0, "websiteClicks": 0}
+    mapa = {"profile_views": "profileViews", "reach": "reachOrg", "website_clicks": "websiteClicks"}
+    try:
+        res = graph_get(f"{ig_id}/insights", {
+            "metric": "profile_views,reach,website_clicks", "period": "day",
+            "metric_type": "total_value",
+            "since": ts_sp(since_d), "until": ts_sp(until_d + timedelta(days=1))})
+        for m in res:
+            k = mapa.get(m.get("name"))
+            if k:
+                out[k] = int((m.get("total_value") or {}).get("value") or 0)
+    except MetaError as e:
+        print(f"  (IG totais indisponíveis p/ este intervalo: {str(e)[:120]})", file=sys.stderr)
+    return out
+
+
+def coletar_instagram(ig_id, pdef, spend_periodo):
+    novos = ig_novos_seguidores(ig_id, *pdef["atual"])
+    prev = ig_novos_seguidores(ig_id, *pdef["anterior"])
+    t = ig_totais(ig_id, *pdef["atual"])
+    return {
+        "novosSeguidores": novos,
+        "prevNovos": prev,
+        "custoSeguidor": custo(spend_periodo, novos),
+        "profileViews": t["profileViews"],
+        "reachOrg": t["reachOrg"],
+        "websiteClicks": t["websiteClicks"],
+    }
+
+
+# --------------------------------------------------------------------------
 # Criptografia: AES-GCM com chave derivada por PBKDF2 (compatível com WebCrypto)
 # --------------------------------------------------------------------------
 PBKDF2_ITER = 200_000
@@ -422,10 +495,27 @@ def main():
     print(f"  ativos -> campanhas: {len(meta_camp)} | conjuntos: {len(meta_adset)} | anúncios: {len(meta_ad)}")
 
     # 2) Períodos (toda a coleta em memória; erro aqui aborta antes de escrever).
+    # Instagram é opcional: se o token não tiver as permissões, a coleta de
+    # anúncios continua normalmente (só não mostra a seção do Instagram).
+    ig_id = ig_user = None
+    ig_seguidores = 0
+    try:
+        ig_id, ig_user, ig_seguidores = instagram_conta()
+        print(f"  Instagram: @{ig_user} ({ig_seguidores} seguidores)" if ig_id
+              else "  Instagram: nenhuma conta vinculada ao token.")
+    except MetaError as e:
+        print(f"  Instagram indisponível (segue sem ele): {str(e)[:160]}", file=sys.stderr)
+
     campanhas_out = {}
     for chave, pdef in periodos_def().items():
         print(f"  período '{chave}' ...")
-        campanhas_out[chave] = periodo(pdef, meta_camp, meta_adset, meta_ad)
+        p = periodo(pdef, meta_camp, meta_adset, meta_ad)
+        if ig_id:
+            try:
+                p["ig"] = coletar_instagram(ig_id, pdef, p["kpis"]["spend"])
+            except MetaError as e:
+                print(f"  (IG período '{chave}' falhou: {str(e)[:120]})", file=sys.stderr)
+        campanhas_out[chave] = p
 
     print("  série diária (90 dias) ...")
     diario = serie_diaria()
@@ -435,7 +525,9 @@ def main():
         "updated": agora.isoformat(),
         "updated_label": agora.strftime("%d/%m/%Y às %H:%M"),
         "tz": TIMEZONE, "account": AD_ACCOUNT, "graph_version": GRAPH_VERSION,
-        "instagram": False,   # vira True quando a coleta do IG for ligada
+        "instagram": bool(ig_id),
+        "ig_username": ig_user,
+        "seguidores_total": ig_seguidores,
     }
 
     # 3) Escreve tudo criptografado só depois de coletar com sucesso.

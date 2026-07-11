@@ -210,6 +210,39 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
     <div><span>Impressões</span><strong class="num" id="m-impr">—</strong></div>
   </div>
 
+  <!-- Instagram (orgânico) — só aparece quando há dados do IG -->
+  <div class="card" id="ig-card" style="margin-top:16px;display:none">
+    <div class="card-head">
+      <div class="card-title">Instagram — <span id="ig-user"></span></div>
+      <div class="card-title" id="ig-total"></div>
+    </div>
+    <div class="kpis" style="margin:0">
+      <div class="kpi">
+        <div class="kpi-label">Novos seguidores</div>
+        <div class="kpi-val num" id="ig-novos">—</div>
+        <div class="kpi-foot"><span class="delta" id="ig-d-novos">—</span> vs. período anterior</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Custo por seguidor</div>
+        <div class="kpi-val num" id="ig-custo">—</div>
+        <div class="kpi-foot">aproximação · investimento ÷ seguidores</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Visitas ao perfil</div>
+        <div class="kpi-val num" id="ig-perfil">—</div>
+        <div class="kpi-foot">no período</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Alcance orgânico</div>
+        <div class="kpi-val num" id="ig-reach">—</div>
+        <div class="kpi-foot">contas alcançadas</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--faint);margin-top:14px;line-height:1.5">
+      Dados orgânicos do Instagram. O <b>custo por seguidor</b> é uma aproximação (investimento em anúncios ÷ novos seguidores do período). A <b>origem de cada seguidor</b> não é fornecida pela Meta — só aparece dentro do app do Instagram.
+    </div>
+  </div>
+
   <!-- Elemento assinatura: para onde vai o dinheiro -->
   <div class="card" style="margin-top:16px">
     <div class="card-title">Para onde foi o investimento</div>
@@ -316,6 +349,19 @@ function renderKPIs(p){
   document.getElementById('m-ctr').textContent        = (k.ctr || 0).toFixed(2) + '%';
   document.getElementById('m-reach').textContent      = int(k.reach);
   document.getElementById('m-impr').textContent       = int(k.impressions);
+}
+
+function renderIG(p, meta){
+  const card = document.getElementById('ig-card'), ig = p.ig;
+  if(!ig || !(meta && meta.instagram)){ card.style.display = 'none'; return; }
+  card.style.display = '';
+  document.getElementById('ig-user').textContent  = meta.ig_username ? '@' + meta.ig_username : '';
+  document.getElementById('ig-total').textContent = meta.seguidores_total ? int(meta.seguidores_total) + ' seguidores' : '';
+  document.getElementById('ig-novos').textContent = int(ig.novosSeguidores);
+  setDelta('ig-d-novos', ig.novosSeguidores, ig.prevNovos, false);
+  document.getElementById('ig-custo').textContent = money(ig.custoSeguidor);
+  document.getElementById('ig-perfil').textContent= int(ig.profileViews);
+  document.getElementById('ig-reach').textContent = int(ig.reachOrg);
 }
 
 /* Cores por tipo de investimento */
@@ -463,6 +509,7 @@ function render(periodKey){
   const p = DATA.periods[periodKey];
   const campanhas = (p.niveis && p.niveis.campanhas) || [];
   renderKPIs(p);
+  renderIG(p, DATA.meta);
   renderDist(campanhas, p.split);   // distribuição e sugestões sempre a nível de campanha
   renderTips(campanhas);
   renderTable();            // tabela segue o nível selecionado
