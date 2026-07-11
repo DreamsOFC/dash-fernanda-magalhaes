@@ -50,8 +50,9 @@ SAO_PAULO = timezone(timedelta(hours=-3))
 BASE = f"https://graph.facebook.com/{GRAPH_VERSION}"
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "docs", "data")
 
-# Quantas linhas no máximo por nível/tabela (os maiores gastadores primeiro).
-TOP_N = 50
+# Teto de linhas por nível/tabela (alto o bastante para não cortar ativos com gasto;
+# existe só como trava contra explosão de tamanho). Os maiores gastadores vêm primeiro.
+TOP_N = 300
 
 # Campos de insights.
 INSIGHT_FIELDS = ",".join([
@@ -268,7 +269,9 @@ def tabela(rows, id_key, name_key, ativos_meta, subrotulo, nome_camp):
             "conversas": m["conversas"],
             "linkClicks": m["linkClicks"],
             "custoClique": custo(m["spend"], m["linkClicks"]),
+            "pageViews": m["pageViews"],
             "cpm": m["cpm"], "ctr": m["ctr"], "freq": m["freq"],
+            "reach": m["reach"], "impressions": m["impressions"],
             "dias": meta.get("dias", 999),
         })
     saida.sort(key=lambda x: x["spend"], reverse=True)
