@@ -82,6 +82,40 @@ def main():
     else:
         print("  (sem dados de insights nos últimos 30 dias)")
 
+    # 3) Confere last_30d (deve bater com o Gerenciador) + split turbinados
+    print("\n== last_30d (deve bater com o 'Últimos 30 dias' do Gerenciador) ==")
+    IMPULS = ("post do instagram", "publicação do instagram", "publicacao do instagram",
+              "publicação:", "publicacao:", "instagram post")
+    def eh_imp(n):
+        n = (n or "").lower(); return any(p in n for p in IMPULS)
+
+    acct = graph_get(f"{AD_ACCOUNT}/insights", {
+        "level": "account", "date_preset": "last_30d",
+        "fields": "spend,impressions,clicks,inline_link_clicks,cpm", "limit": 10})
+    if acct:
+        a = acct[0]
+        print(f"  spend={a.get('spend')}  impressions={a.get('impressions')}  "
+              f"link_clicks={a.get('inline_link_clicks')}  cpm={a.get('cpm')}")
+
+    camp = graph_get(f"{AD_ACCOUNT}/insights", {
+        "level": "campaign", "date_preset": "last_30d",
+        "fields": "spend,campaign_name", "limit": 500})
+    imp_s = camp_s = 0.0; imp_n = camp_n = 0
+    tops = []
+    for r in camp:
+        s = float(r.get("spend") or 0)
+        if s <= 0: continue
+        nome = r.get("campaign_name")
+        tops.append((s, nome, eh_imp(nome)))
+        if eh_imp(nome): imp_s += s; imp_n += 1
+        else: camp_s += s; camp_n += 1
+    tot = imp_s + camp_s or 1
+    print(f"  TURBINADOS:  R$ {imp_s:,.2f}  ({imp_s/tot*100:.0f}%)  em {imp_n} campanhas")
+    print(f"  ESTRUTURADAS: R$ {camp_s:,.2f}  ({camp_s/tot*100:.0f}%)  em {camp_n} campanhas")
+    print("  Top 8 por gasto:")
+    for s, nome, imp in sorted(tops, reverse=True)[:8]:
+        print(f"    {'[TURBO]' if imp else '[CAMP ]'} R$ {s:>9,.2f}  {(nome or '')[:52]}")
+
     print("\n== Fim do diagnóstico ==")
 
 
