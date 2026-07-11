@@ -157,6 +157,33 @@ def main():
                 print(f"    ✓ {metric}: {amostra}")
             except RuntimeError as e:
                 print(f"    ✗ {metric}: {str(e)[:180]}")
+        # Números reais por período (o que o dash vai mostrar)
+        def novos(dias):
+            tot = 0; fim = hoje
+            ini = fim - dias * 86400
+            cur = ini
+            while cur < fim:
+                ce = min(cur + 28 * 86400, fim)
+                try:
+                    r = graph_get(f"{ig_id}/insights", {"metric": "follower_count",
+                        "period": "day", "since": cur, "until": ce})
+                    for v in (r[0].get("values", []) if r else []):
+                        tot += int(v.get("value") or 0)
+                except RuntimeError as e:
+                    return f"indisponível ({str(e)[:60]})"
+                cur = ce
+            return tot
+        try:
+            pv = graph_get(f"{ig_id}/insights", {"metric": "profile_views",
+                "period": "day", "metric_type": "total_value",
+                "since": hoje - 30 * 86400, "until": hoje})
+            pv_val = (pv[0].get("total_value") or {}).get("value") if pv else "?"
+        except RuntimeError as e:
+            pv_val = f"indisponível ({str(e)[:60]})"
+        print(f"\n  NÚMEROS REAIS:")
+        print(f"    Novos seguidores (7 dias):  {novos(7)}")
+        print(f"    Novos seguidores (30 dias): {novos(30)}")
+        print(f"    Visitas ao perfil (30 dias): {pv_val}")
     else:
         print("  Nenhuma conta de Instagram vinculada encontrada pelo token.")
 
