@@ -125,7 +125,22 @@ class MetaError(RuntimeError):
     pass
 
 
+class MetaTimeout(MetaError):
+    """Subcode 1504018 — a solicitação síncrona expirou (conta grande)."""
+
+
+TIMEOUT_SUBCODE = 1504018
+
+
+def _erro_subcode(resp):
+    try:
+        return resp.json().get("error", {}).get("error_subcode")
+    except Exception:
+        return None
+
+
 def graph_get(path, params, max_retries=5):
+    """GET numa EDGE (retorna a lista 'data', seguindo paginação)."""
     params = dict(params)
     params["access_token"] = TOKEN
     url = f"{BASE}/{path}"
@@ -135,28 +150,58 @@ def graph_get(path, params, max_retries=5):
         while True:
             attempt += 1
             try:
-                resp = requests.get(url, params=params, timeout=60)
+                resp = requests.get(url, params=params, timeout=90)
             except requests.RequestException as e:
                 if attempt >= max_retries:
                     raise MetaError(f"Falha de rede em {url}: {e}")
                 _backoff(attempt); continue
+
+            if resp.status_code == 200:
+                payload = resp.json()
+                if "error" in payload:
+                    err = payload["error"]
+                    if err.get("error_subcode") == TIMEOUT_SUBCODE:
+                        raise MetaTimeout("Meta: solicitação expirou (subcode 1504018)")
+                    if err.get("code") in (4, 17, 32, 613) and attempt < max_retries:
+                        _backoff(attempt); continue
+                    raise MetaError(f"Erro da API Meta: {json.dumps(err)[:600]}")
+                rows.extend(payload.get("data", []))
+                url = payload.get("paging", {}).get("next")
+                params = {}  # 'next' já é URL completa
+                break
+
+            # Não-200: primeiro checa se é o timeout (pode vir como 400/500)
+            if _erro_subcode(resp) == TIMEOUT_SUBCODE:
+                raise MetaTimeout("Meta: solicitação expirou (subcode 1504018)")
             if resp.status_code in (429, 500, 502, 503):
                 if attempt >= max_retries:
                     raise MetaError(f"HTTP {resp.status_code} persistente em {url}: {resp.text[:400]}")
                 _backoff(attempt); continue
-            if resp.status_code != 200:
-                raise MetaError(f"HTTP {resp.status_code} em {url}: {resp.text[:600]}")
-            payload = resp.json()
-            if "error" in payload:
-                err = payload["error"]
-                if err.get("code") in (4, 17, 32, 613) and attempt < max_retries:
-                    _backoff(attempt); continue
-                raise MetaError(f"Erro da API Meta: {json.dumps(err)[:600]}")
-            rows.extend(payload.get("data", []))
-            url = payload.get("paging", {}).get("next")
-            params = {}  # 'next' já é URL completa
-            break
+            raise MetaError(f"HTTP {resp.status_code} em {url}: {resp.text[:600]}")
     return rows
+
+
+def graph_get_node(path, params):
+    """GET num NÓ (retorna o objeto cru — ex.: status de um job assíncrono)."""
+    p = dict(params); p["access_token"] = TOKEN
+    resp = requests.get(f"{BASE}/{path}", params=p, timeout=60)
+    if resp.status_code != 200:
+        raise MetaError(f"HTTP {resp.status_code} em {path}: {resp.text[:300]}")
+    return resp.json()
+
+
+def graph_post(path, params):
+    """POST (cria um job de Async Insights)."""
+    data = dict(params); data["access_token"] = TOKEN
+    try:
+        resp = requests.post(f"{BASE}/{path}", data=data, timeout=120)
+    except requests.RequestException as e:
+        raise MetaError(f"Falha de rede (POST) em {path}: {e}")
+    if resp.status_code != 200:
+        if _erro_subcode(resp) == TIMEOUT_SUBCODE:
+            raise MetaTimeout("Meta: solicitação expirou (subcode 1504018)")
+        raise MetaError(f"HTTP {resp.status_code} (POST) em {path}: {resp.text[:400]}")
+    return resp.json()
 
 
 def _backoff(attempt):
@@ -193,6 +238,8 @@ def periodos_def():
     fim_mes_ant = ini_mes - timedelta(days=1)
     ini_mes_ant = fim_mes_ant.replace(day=1)
 
+    # Conjunto enxuto p/ a primeira carga estável em conta grande. "Mês passado" e
+    # "Máximo (90 dias)" ficaram de fora por serem os mais pesados — reativar depois.
     presets = [
         ("hoje",        "Hoje",             hoje,                        hoje),
         ("ontem",       "Ontem",            ontem,                       ontem),
@@ -202,9 +249,8 @@ def periodos_def():
         ("14d",         "Últimos 14 dias",  hoje - timedelta(days=14),   ontem),
         ("30d",         "Últimos 30 dias",  hoje - timedelta(days=30),   ontem),
         ("mes",         "Este mês",         ini_mes,                     hoje),
-        ("mes_passado", "Mês passado",      ini_mes_ant,                 fim_mes_ant),
-        ("max",         "Máximo (90 dias)", hoje - timedelta(days=89),   hoje),
     ]
+    _ = (ini_mes_ant, fim_mes_ant)  # reservado p/ "Mês passado" quando reativar
     return {key: {"label": label, **_janela(since, until)}
             for key, label, since, until in presets}
 
@@ -304,13 +350,49 @@ def kpis_conta(rows):
     }
 
 
-def insights(level, since, until, extra_fields=""):
+def _insights_params(level, since, until, extra_fields, ativos_only):
     fields = INSIGHT_FIELDS + (("," + extra_fields) if extra_fields else "")
-    return graph_get(f"{AD_ACCOUNT}/insights", {
+    params = {
         "level": level, "fields": fields,
         "time_range": json.dumps({"since": d(since), "until": d(until)}),
         "limit": 500,
-    })
+    }
+    # Reduz a carga no servidor: só objetos ATIVOS (o dashboard só mostra ativos mesmo).
+    if ativos_only and level != "account":
+        params["filtering"] = json.dumps(
+            [{"field": f"{level}.effective_status", "operator": "IN", "value": ["ACTIVE"]}])
+    return params
+
+
+def insights_async(params, rotulo=""):
+    """Async Insights API: cria o job, faz poll do status e busca o resultado.
+    Caminho oficial da Meta para consultas pesadas (contas grandes)."""
+    run = graph_post(f"{AD_ACCOUNT}/insights", params)
+    run_id = run.get("report_run_id")
+    if not run_id:
+        raise MetaError(f"Async sem report_run_id: {json.dumps(run)[:200]}")
+    print(f"  [async {rotulo}] job {run_id} criado; aguardando...", file=sys.stderr)
+    for _ in range(120):                       # ~6 min de tolerância
+        time.sleep(3)
+        st = graph_get_node(str(run_id), {"fields": "async_status,async_percent_completion"})
+        status = st.get("async_status")
+        if status == "Job Completed":
+            return graph_get(f"{run_id}/insights", {"limit": 500})
+        if status in ("Job Failed", "Job Skipped"):
+            raise MetaError(f"Async job {status} ({rotulo})")
+    raise MetaError(f"Async job não completou a tempo ({rotulo})")
+
+
+def insights(level, since, until, extra_fields="", ativos_only=False):
+    """Insights com time_range explícito. Tenta síncrono; se o Meta estourar o tempo
+    (subcode 1504018), cai para a Async Insights API."""
+    params = _insights_params(level, since, until, extra_fields, ativos_only)
+    try:
+        return graph_get(f"{AD_ACCOUNT}/insights", params)
+    except MetaTimeout:
+        rotulo = f"{level} {d(since)}..{d(until)}"
+        print(f"  timeout síncrono em {rotulo} -> Async Insights", file=sys.stderr)
+        return insights_async(params, rotulo=rotulo)
 
 
 def split_por_tipo(camp_rows, meta_camp):
@@ -342,9 +424,9 @@ def periodo(pdef, meta_camp, meta_adset, meta_ad):
             ("spend", "cadastros", "custoCadastro", "pageViews",
              "custoPageView", "linkClicks", "conversas")}
 
-    camp_rows = insights("campaign", ai, af, "campaign_id,campaign_name")
-    adset_rows = insights("adset", ai, af, "adset_id,adset_name,campaign_name")
-    ad_rows = insights("ad", ai, af, "ad_id,ad_name,adset_name,campaign_name")
+    camp_rows = insights("campaign", ai, af, "campaign_id,campaign_name", ativos_only=True)
+    adset_rows = insights("adset", ai, af, "adset_id,adset_name,campaign_name", ativos_only=True)
+    ad_rows = insights("ad", ai, af, "ad_id,ad_name,adset_name,campaign_name", ativos_only=True)
 
     campanhas = tabela(camp_rows, "campaign_id", "campaign_name", meta_camp,
                        lambda r, m: m.get("objetivo", "—"),
@@ -362,18 +444,39 @@ def periodo(pdef, meta_camp, meta_adset, meta_ad):
             "niveis": {"campanhas": campanhas, "conjuntos": conjuntos, "anuncios": anuncios}}
 
 
+DIAS_SERIE = 30   # janela padrão da primeira carga (era 90); aumentar depois se estável.
+
+
+def _serie_chunk(since, until):
+    """Série diária de um intervalo. Em timeout (1504018), divide pela metade e retenta."""
+    try:
+        return graph_get(f"{AD_ACCOUNT}/insights", {
+            "level": "account", "fields": INSIGHT_FIELDS,
+            "time_range": json.dumps({"since": d(since), "until": d(until)}),
+            "time_increment": 1, "limit": 500,
+        })
+    except MetaTimeout:
+        if since >= until:
+            raise
+        meio = since + timedelta(days=(until - since).days // 2)
+        print(f"  timeout na série {d(since)}..{d(until)}; dividindo", file=sys.stderr)
+        return _serie_chunk(since, meio) + _serie_chunk(meio + timedelta(days=1), until)
+
+
 def serie_diaria():
-    # 90 dias incluindo hoje (para os presets curtos como "Hoje" terem ponto no gráfico;
-    # o dia corrente ainda está consolidando no Meta — o rodapé avisa isso).
+    # Incluindo hoje (para presets curtos como "Hoje" terem ponto no gráfico). Buscada
+    # em janelas de 7 dias, sequenciais, para não estourar o tempo do Meta.
     hoje = hoje_sp()
-    since = hoje - timedelta(days=89)
-    rows = graph_get(f"{AD_ACCOUNT}/insights", {
-        "level": "account", "fields": INSIGHT_FIELDS,
-        "time_range": json.dumps({"since": d(since), "until": d(hoje)}),
-        "time_increment": 1, "limit": 500,
-    })
+    ini = hoje - timedelta(days=DIAS_SERIE - 1)
+    brutos = []
+    cur = ini
+    while cur <= hoje:
+        fim = min(cur + timedelta(days=6), hoje)
+        brutos.extend(_serie_chunk(cur, fim))
+        cur = fim + timedelta(days=1)
+
     serie = []
-    for r in rows:
+    for r in brutos:
         m = metricas(r)
         serie.append({
             "date": r.get("date_start"),
@@ -482,6 +585,30 @@ def encrypt(obj):
             "ct": base64.b64encode(ct).decode()}
 
 
+def decrypt(env):
+    salt = base64.b64decode(env["salt"])
+    iv = base64.b64decode(env["iv"])
+    ct = base64.b64decode(env["ct"])
+    key = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt,
+                     iterations=int(env.get("iter", PBKDF2_ITER))).derive(PASSWORD.encode("utf-8"))
+    return json.loads(AESGCM(key).decrypt(iv, ct, None).decode("utf-8"))
+
+
+def ler_existente(nome):
+    """Lê e descriptografa um JSON já commitado, p/ manter dados anteriores quando um
+    período novo falha (nunca sobrescrever dado bom com vazio)."""
+    caminho = os.path.join(OUT_DIR, nome)
+    if not os.path.exists(caminho):
+        return None
+    try:
+        with open(caminho, encoding="utf-8") as f:
+            env = json.load(f)
+        return decrypt(env)
+    except Exception as e:
+        print(f"  (não consegui ler {nome} anterior: {str(e)[:120]})", file=sys.stderr)
+        return None
+
+
 def escrever(nome, obj):
     caminho = os.path.join(OUT_DIR, nome)
     with open(caminho, "w", encoding="utf-8") as f:
@@ -524,19 +651,43 @@ def main():
     except MetaError as e:
         print(f"  Instagram indisponível (segue sem ele): {str(e)[:160]}", file=sys.stderr)
 
+    # Dados já publicados — usados como reserva se um período novo falhar.
+    old_camp = ler_existente("campanhas.json") or {}
+    old_diario = ler_existente("diario.json")
+
+    # 3) Cada período é independente: se um falha, mantém o dado anterior daquele
+    #    período em vez de perder tudo.
     campanhas_out = {}
+    falhas = []
     for chave, pdef in periodos_def().items():
         print(f"  período '{chave}' ...")
-        p = periodo(pdef, meta_camp, meta_adset, meta_ad)
-        if ig_id:
-            try:
-                p["ig"] = coletar_instagram(ig_id, pdef, p["kpis"]["spend"])
-            except MetaError as e:
-                print(f"  (IG período '{chave}' falhou: {str(e)[:120]})", file=sys.stderr)
-        campanhas_out[chave] = p
+        try:
+            p = periodo(pdef, meta_camp, meta_adset, meta_ad)
+            if ig_id:
+                try:
+                    p["ig"] = coletar_instagram(ig_id, pdef, p["kpis"]["spend"])
+                except MetaError as e:
+                    print(f"  (IG período '{chave}' falhou: {str(e)[:120]})", file=sys.stderr)
+            campanhas_out[chave] = p
+        except MetaError as e:
+            falhas.append(chave)
+            print(f"  período '{chave}' FALHOU: {str(e)[:160]}", file=sys.stderr)
+            if chave in old_camp:
+                campanhas_out[chave] = old_camp[chave]
+                print(f"   -> mantido o dado anterior de '{chave}'")
 
-    print("  série diária (90 dias) ...")
-    diario = serie_diaria()
+    if not campanhas_out:
+        raise MetaError("Nenhum período coletado e sem dados anteriores — abortando "
+                        "para não apagar dados bons.")
+
+    print(f"  série diária ({DIAS_SERIE} dias) ...")
+    try:
+        diario = serie_diaria()
+    except MetaError as e:
+        print(f"  série diária FALHOU: {str(e)[:160]}", file=sys.stderr)
+        diario = old_diario if old_diario else []
+        if old_diario:
+            print("   -> mantida a série anterior")
 
     agora = datetime.now(SAO_PAULO)
     meta_out = {
@@ -546,14 +697,18 @@ def main():
         "instagram": bool(ig_id),
         "ig_username": ig_user,
         "seguidores_total": ig_seguidores,
+        "periodos_falhos": falhas,
     }
 
-    # 3) Escreve tudo criptografado só depois de coletar com sucesso.
+    # 4) Grava (criptografado). campanhas_out nunca está vazio aqui.
     print("Criptografando e gravando ...")
-    escrever("diario.json", diario)
+    if diario:                       # não sobrescreve série boa com vazio
+        escrever("diario.json", diario)
+    else:
+        print("  (diario.json mantido — sem dados novos nem anteriores)")
     escrever("campanhas.json", campanhas_out)
     escrever("meta.json", meta_out)
-    print("Concluído com sucesso.")
+    print(f"Concluído. Períodos coletados: {len(campanhas_out)} | falhos: {falhas or 'nenhum'}")
 
 
 if __name__ == "__main__":
