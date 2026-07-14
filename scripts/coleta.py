@@ -238,8 +238,8 @@ def periodos_def():
     fim_mes_ant = ini_mes - timedelta(days=1)
     ini_mes_ant = fim_mes_ant.replace(day=1)
 
-    # Conjunto enxuto p/ a primeira carga estável em conta grande. "Mês passado" e
-    # "Máximo (90 dias)" ficaram de fora por serem os mais pesados — reativar depois.
+    # "Máximo (90 dias)" fica de fora de propósito: traria campanhas antigas que não
+    # fazem sentido agora (além de ser a consulta mais pesada).
     presets = [
         ("hoje",        "Hoje",             hoje,                        hoje),
         ("ontem",       "Ontem",            ontem,                       ontem),
@@ -249,8 +249,8 @@ def periodos_def():
         ("14d",         "Últimos 14 dias",  hoje - timedelta(days=14),   ontem),
         ("30d",         "Últimos 30 dias",  hoje - timedelta(days=30),   ontem),
         ("mes",         "Este mês",         ini_mes,                     hoje),
+        ("mes_passado", "Mês passado",      ini_mes_ant,                 fim_mes_ant),
     ]
-    _ = (ini_mes_ant, fim_mes_ant)  # reservado p/ "Mês passado" quando reativar
     return {key: {"label": label, **_janela(since, until)}
             for key, label, since, until in presets}
 
