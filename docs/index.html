@@ -456,14 +456,25 @@ function renderKPIs(p){
   document.getElementById('k-seg').textContent = semDado ? '—' : int(ig.novosSeguidores);
   document.getElementById('k-perfil').textContent = ig.profileViews==null ? '—' : int(ig.profileViews);
   document.getElementById('k-reach').textContent  = int(k.reach);
-  setDelta('d-spend', k.spend,            pv.spend,        false);
-  if(semDado){
-    const d = document.getElementById('d-seg');
-    d.textContent = ''; d.className = 'delta';
+  // Sem investimento conhecido no período anterior, a comparação não tem base:
+  // some com TODAS as variações em vez de mostrar só algumas.
+  const temBase = !!pv.spend;
+  const limpaDelta = id => {
+    const e = document.getElementById(id);
+    e.textContent = '—'; e.className = 'delta';
+  };
+
+  if(!temBase){
+    ['d-spend','d-seg','d-reach'].forEach(limpaDelta);
+  } else {
+    setDelta('d-spend', k.spend, pv.spend, false);
+    setDelta('d-reach', k.reach, pv.reach, false);
+  }
+  if(semDado || !temBase){
+    limpaDelta('d-seg');
   } else {
     setDelta('d-seg', ig.novosSeguidores, ig.prevNovos, false);
   }
-  setDelta('d-reach', k.reach,            pv.reach,        false);
 
   // quebra entre quem passou a seguir e quem deixou de seguir
   const fseg = document.getElementById('f-seg');
