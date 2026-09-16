@@ -352,11 +352,13 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
         <tbody id="tbody"></tbody>
       </table>
     </div>
-      <div class="card-head" style="margin-top:26px">
-        <div class="card-title">Custo por mil (CPM) e frequência</div>
-        <div class="chart-legend">CPM subindo junto com frequência = criativo cansando</div>
+      <div id="bloco-chart3">
+        <div class="card-head" style="margin-top:26px">
+          <div class="card-title">Custo por mil (CPM) e frequência</div>
+          <div class="chart-legend">CPM subindo junto com frequência = criativo cansando</div>
+        </div>
+        <div class="chart-box" style="height:250px"><canvas id="chart3"></canvas></div>
       </div>
-      <div class="chart-box" style="height:250px"><canvas id="chart3"></canvas></div>
 
       <p class="tech-note">O <b>custo por seguidor</b> é uma aproximação: investimento total dividido pelos novos seguidores do período. A Meta não informa a origem de cada seguidor.</p>
     </div>
@@ -432,23 +434,46 @@ function setDelta(id, cur, prev, invert){
   e.textContent = s.txt; e.className = 'delta ' + s.cls;
 }
 
+/* O Instagram leva ~48h para consolidar seguidores. Se o período vai até
+   ontem ou hoje, o número ainda não fechou. */
+function periodoAindaFechando(p){
+  if(!p || !p.until) return false;
+  const limite = new Date();
+  limite.setHours(0,0,0,0);
+  limite.setDate(limite.getDate() - 2);
+  return new Date(p.until + 'T00:00:00') > limite;
+}
+
 function renderKPIs(p){
   const k = p.kpis, pv = p.prev || {}, ig = p.ig || {};
 
   // Primários — o que a cliente quer saber
   document.getElementById('k-spend').textContent  = 'R$ ' + int(k.spend);
-  document.getElementById('k-seg').textContent    = ig.novosSeguidores==null ? '—' : int(ig.novosSeguidores);
+  // Seguidores: o Instagram leva ~48h para fechar o dia. Se o período termina
+  // dentro dessa janela, mostrar 0 seria mentira — mostramos o estado real.
+  const emConsolidacao = periodoAindaFechando(p);
+  const semDado = ig.novosSeguidores == null || (!ig.novosSeguidores && emConsolidacao);
+  document.getElementById('k-seg').textContent = semDado ? '—' : int(ig.novosSeguidores);
   document.getElementById('k-perfil').textContent = ig.profileViews==null ? '—' : int(ig.profileViews);
   document.getElementById('k-reach').textContent  = int(k.reach);
   setDelta('d-spend', k.spend,            pv.spend,        false);
-  setDelta('d-seg',   ig.novosSeguidores, ig.prevNovos,    false);
+  if(semDado){
+    const d = document.getElementById('d-seg');
+    d.textContent = ''; d.className = 'delta';
+  } else {
+    setDelta('d-seg', ig.novosSeguidores, ig.prevNovos, false);
+  }
   setDelta('d-reach', k.reach,            pv.reach,        false);
 
   // quebra entre quem passou a seguir e quem deixou de seguir
   const fseg = document.getElementById('f-seg');
-  fseg.textContent = (ig.seguidoresGanhos != null && ig.seguidoresPerdidos != null)
-    ? int(ig.seguidoresGanhos) + ' seguiram · ' + int(ig.seguidoresPerdidos) + ' deixaram de seguir'
-    : '';
+  if(semDado){
+    fseg.textContent = 'o Instagram fecha esse número em até 48h';
+  } else if(ig.seguidoresGanhos != null && ig.seguidoresPerdidos != null){
+    fseg.textContent = int(ig.seguidoresGanhos) + ' seguiram · ' + int(ig.seguidoresPerdidos) + ' deixaram de seguir';
+  } else {
+    fseg.textContent = '';
+  }
 
   // Técnicos — dentro do bloco recolhível
   document.getElementById('m-cad').textContent        = int(k.cadastros);
@@ -464,7 +489,7 @@ function renderKPIs(p){
   document.getElementById('m-reachorg').textContent   = ig.reachOrg==null ? '—' : int(ig.reachOrg);
   document.getElementById('m-custoseg').textContent   = money(ig.custoSeguidor);
 
-  renderResumo(k, ig);
+  renderResumo(k, semDado ? Object.assign({}, ig, {novosSeguidores:null}) : ig);
 }
 
 /* Frase de abertura: responde "como foi o período?" antes de qualquer número solto */
@@ -619,11 +644,13 @@ function renderChart(periodKey){
   /* ---------- 1. investimento + seguidores acumulados ---------- */
   const acumulado = acumularSeguidores(serie);
   const nota = document.getElementById('chart1-note');
+  const umDiaSo = serie.length <= 1;
   if(chart) chart.destroy();
 
   const datasets1 = [
     {type:'bar', label:'Investimento', data:serie.map(d=>d.spend), yAxisID:'y',
-     backgroundColor:'#EADDF6', hoverBackgroundColor:'#D6BEEE', borderRadius:5, barPercentage:.72, order:2}
+     backgroundColor:'#EADDF6', hoverBackgroundColor:'#D6BEEE', borderRadius:5,
+     barPercentage:.72, maxBarThickness:46, order:2}
   ];
   if(acumulado){
     datasets1.push({type:'line', label:'Seguidores acumulados', data:acumulado, yAxisID:'y2',
@@ -633,20 +660,24 @@ function renderChart(periodKey){
   } else {
     nota.textContent = 'seguidores por dia ainda não coletados';
   }
+  if(umDiaSo) nota.textContent = 'escolha um período maior para ver a evolução';
 
   chart = new Chart(document.getElementById('chart'), {
     data:{labels, datasets:datasets1},
     options: baseOpts({
-      plugins:{legend:LEGENDA, tooltip:Object.assign({}, TOOLTIP_BASE, {callbacks:{
-        label:c => c.dataset.yAxisID === 'y'
-          ? 'Investimento: ' + (c.parsed.y==null?'—':brl(c.parsed.y))
-          : 'Seguidores acumulados: ' + (c.parsed.y==null?'—':'+'+int(c.parsed.y))
-      }})},
+      plugins:{
+        legend:Object.assign({}, LEGENDA, {display:!!acumulado}),
+        tooltip:Object.assign({}, TOOLTIP_BASE, {callbacks:{
+          label:c => c.dataset.yAxisID === 'y'
+            ? 'Investimento: ' + (c.parsed.y==null?'—':brl(c.parsed.y))
+            : 'Seguidores acumulados: ' + (c.parsed.y==null?'—':'+'+int(c.parsed.y))
+        }})},
       scales:{
         x:{grid:{display:false}, border:{display:false}, ticks:Object.assign({maxTicksLimit:10}, EIXO)},
         y:{position:'left', grid:GRADE, border:{display:false},
            ticks:Object.assign({callback:v=>'R$'+v}, EIXO)},
-        y2:{position:'right', grid:{display:false}, border:{display:false}, beginAtZero:true,
+        y2:{display:!!acumulado, position:'right', grid:{display:false}, border:{display:false},
+            beginAtZero:true,
             ticks:Object.assign({callback:v=>'+'+int(v)}, EIXO, {color:'#22B06B'})}
       }
     })
@@ -680,6 +711,7 @@ function renderChart(periodKey){
 
   /* ---------- 3. CPM x frequência (técnico) ---------- */
   const tem3 = temCampo('cpm') || temCampo('freq');
+  mostrarCard('bloco-chart3', tem3);
   if(chart3) chart3.destroy();
   if(tem3){
     chart3 = new Chart(document.getElementById('chart3'), {
