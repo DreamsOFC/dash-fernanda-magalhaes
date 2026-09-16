@@ -10,23 +10,34 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{
-  --bg:#F6F7F6; --surface:#FFFFFF; --ink:#16191C; --muted:#7A8189; --faint:#9CA3A0;
-  --line:#E6E9E7; --accent:#0F6E56; --accent-soft:#E3F1EC;
-  --ok:#2E7D5B; --warn:#B4740E; --bad:#C2453B;
-  --ok-bg:#E7F2EC; --warn-bg:#FBF0DC; --bad-bg:#FAE9E7;
+  /* Neutros — a base continua clara e sóbria */
+  --bg:#F7F5FA; --surface:#FFFFFF; --ink:#1B1526; --muted:#7B7488; --faint:#9E97AB;
+  --line:#EAE5F0;
+
+  /* Marca Fernanda Magalhães */
+  --roxo:#6B2E9E; --roxo-esc:#4A1D6E; --roxo-claro:#F0E8F8;
+  --laranja:#EE7A22; --laranja-claro:#FDEFE2;
+  --verde:#22B06B; --verde-claro:#E4F6ED;
+
+  /* Papéis semânticos */
+  --accent:var(--roxo); --accent-soft:var(--roxo-claro);
+  --ok:#1B8F55; --warn:#C25F08; --bad:#C0392F;
+  --ok-bg:var(--verde-claro); --warn-bg:var(--laranja-claro); --bad-bg:#FBE9E7;
   --r:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font-family:"Instrument Sans",system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
 .num{font-family:"Space Grotesk",monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
 .wrap{max-width:1100px;margin:0 auto;padding:32px 20px 64px}
+.brandbar{height:5px;border-radius:999px;margin-bottom:26px;
+  background:linear-gradient(90deg,var(--roxo) 0%,#9A4BA8 38%,var(--laranja) 72%,var(--verde) 100%)}
 
 /* header */
 .top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:28px}
-.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:500}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--roxo);font-weight:600}
 h1{font-family:"Space Grotesk",sans-serif;font-size:28px;font-weight:500;letter-spacing:-0.02em;margin-top:2px}
 .sync{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--verde);flex:none}
 
 /* seletor de período (dropdown estilo Meta) */
 .period{position:relative;margin-bottom:24px;display:inline-block}
@@ -39,7 +50,7 @@ h1{font-family:"Space Grotesk",sans-serif;font-size:28px;font-weight:500;letter-
 .period-menu.on{display:block}
 .period-opt{display:block;width:100%;text-align:left;background:none;border:none;font-family:inherit;font-size:14px;color:var(--ink);padding:9px 12px;border-radius:8px;cursor:pointer}
 .period-opt:hover{background:var(--bg)}
-.period-opt[aria-selected="true"]{background:var(--ink);color:#fff}
+.period-opt[aria-selected="true"]{background:var(--roxo);color:#fff}
 
 /* cards */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
@@ -62,22 +73,48 @@ h1{font-family:"Space Grotesk",sans-serif;font-size:28px;font-weight:500;letter-
 .dist-track{grid-column:1/-1;height:7px;background:var(--bg);border-radius:999px;overflow:hidden}
 .dist-fill{height:100%;border-radius:999px;transition:width .3s}
 
+/* linha do instagram no header */
+.ig-line{font-size:13px;color:var(--faint);margin-top:4px}
+
+/* frase de resumo */
+.resumo{font-size:17px;line-height:1.55;color:var(--muted);margin:0 0 20px;max-width:60ch}
+.resumo b{color:var(--ink);font-weight:500}
+
+/* bloco recolhível de detalhes técnicos */
+.tech{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.tech summary{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:18px 22px;cursor:pointer;
+  font-size:14px;font-weight:500;color:var(--ink);list-style:none;border-radius:var(--r)}
+.tech summary::-webkit-details-marker{display:none}
+.tech summary::after{content:'▾';margin-left:auto;color:var(--muted);font-size:12px;transition:transform .15s}
+.tech[open] summary::after{transform:rotate(180deg)}
+.tech summary:hover{background:var(--bg)}
+.tech summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.tech-hint{font-size:12.5px;font-weight:400;color:var(--faint)}
+.tech-body{padding:0 22px 22px}
+.tech-note{font-size:12px;color:var(--faint);margin-top:16px;line-height:1.5}
+.tech .mini{border-radius:10px}
+
 /* kpis */
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:16px 0}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px}
 .kpi-label{font-size:12.5px;color:var(--muted);margin-bottom:10px}
 .kpi-val{font-size:30px;font-weight:500;line-height:1.1}
+.kpi-sub{margin-top:3px;font-size:12px;color:var(--faint)}
 .kpi-foot{margin-top:9px;font-size:12.5px;color:var(--faint);display:flex;align-items:center;gap:6px}
 .delta{font-weight:500;font-family:"Space Grotesk";font-variant-numeric:tabular-nums}
 .up{color:var(--ok)} .down{color:var(--bad)}
-.kpi.hero{background:var(--ink);border-color:var(--ink);color:#fff}
-.kpi.hero .kpi-label,.kpi.hero .kpi-foot{color:#9AA3A0}
+.kpi.hero{background:linear-gradient(135deg,var(--roxo-esc) 0%,var(--roxo) 58%,#9A4BA8 100%);
+  border-color:transparent;color:#fff}
+.kpi.hero .kpi-label{color:#D9C8E8}
+.kpi.hero .kpi-foot{color:#C7B2DA}
+.kpi.hero .delta.up{color:#8CE6B4}
+.kpi.hero .delta.down{color:#F4B4A8}
 
 /* secundárias */
 .mini{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .mini div{background:var(--surface);padding:16px}
 .mini span{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
-.mini strong{font-size:19px;font-weight:500}
+.mini strong{font-size:18px;font-weight:500}
 
 /* sugestões */
 .tips{list-style:none;display:flex;flex-direction:column;gap:10px}
@@ -90,7 +127,7 @@ h1{font-family:"Space Grotesk",sans-serif;font-size:28px;font-weight:500;letter-
 .levels{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px}
 .lvl{border:none;background:none;font-family:inherit;font-size:13px;color:var(--muted);padding:6px 14px;border-radius:999px;cursor:pointer;transition:.15s}
 .lvl:hover{color:var(--ink)}
-.lvl[aria-selected="true"]{background:var(--ink);color:#fff}
+.lvl[aria-selected="true"]{background:var(--roxo);color:#fff}
 .lvl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* tabela */
@@ -130,6 +167,7 @@ tbody tr[data-idx]:hover{background:var(--bg)}
 .modal-note{font-size:12px;color:var(--faint);margin-top:14px;line-height:1.5}
 
 .chart-box{position:relative;height:290px}
+.chart-legend{font-size:12px;color:var(--faint);max-width:46ch;text-align:right}
 footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
 
 /* aviso discreto de dados de exemplo */
@@ -146,8 +184,8 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
 .gate-card p{font-size:13.5px;color:var(--muted);margin-bottom:18px}
 .gate-card input{width:100%;font-family:inherit;font-size:15px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);margin-bottom:12px}
 .gate-card input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
-.gate-card button{width:100%;font-family:inherit;font-size:15px;font-weight:500;padding:12px;border:none;border-radius:10px;background:var(--ink);color:#fff;cursor:pointer;transition:.15s}
-.gate-card button:hover{background:#000}
+.gate-card button{width:100%;font-family:inherit;font-size:15px;font-weight:500;padding:12px;border:none;border-radius:10px;background:var(--roxo);color:#fff;cursor:pointer;transition:.15s}
+.gate-card button:hover{background:var(--roxo-esc)}
 .gate-card button:disabled{opacity:.6;cursor:default}
 .gate-err{color:var(--bad);font-size:13px;margin-top:10px;min-height:18px}
 
@@ -157,6 +195,9 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
 }
 @media(max-width:520px){
   .wrap{padding:24px 14px 48px}
+  .resumo{font-size:15.5px}
+  .tech summary{padding:16px 18px}
+  .tech-body{padding:0 18px 18px}
   h1{font-size:23px}
   .kpi-val{font-size:26px}
   .card{padding:18px}
@@ -194,10 +235,13 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
 
 <div class="wrap">
 
+  <div class="brandbar"></div>
+
   <header class="top">
     <div>
-      <div class="eyebrow">Meta Ads</div>
+      <div class="eyebrow">Relatório de resultados</div>
       <h1>Fernanda Magalhães</h1>
+      <div class="ig-line" id="ig-line"></div>
     </div>
     <div class="sync"><span class="dot"></span><span>Atualizado <span id="sync-time">—</span></span></div>
   </header>
@@ -212,7 +256,10 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
     <div class="period-menu" id="period-menu" role="listbox" aria-label="Período"></div>
   </div>
 
-  <!-- KPIs primários -->
+  <!-- Resumo em uma frase -->
+  <p class="resumo" id="resumo"></p>
+
+  <!-- KPIs primários: investimento + os resultados que importam -->
   <div class="kpis">
     <div class="kpi hero">
       <div class="kpi-label">Investimento</div>
@@ -220,64 +267,20 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
       <div class="kpi-foot"><span class="delta" id="d-spend">—</span> vs. período anterior</div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Cadastros</div>
-      <div class="kpi-val num" id="k-cad">—</div>
-      <div class="kpi-foot"><span class="delta" id="d-cad">—</span> vs. período anterior</div>
+      <div class="kpi-label">Novos seguidores</div>
+      <div class="kpi-val num" id="k-seg">—</div>
+      <div class="kpi-foot"><span class="delta" id="d-seg">—</span> vs. período anterior</div>
+      <div class="kpi-foot kpi-sub" id="f-seg"></div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Custo por cadastro</div>
-      <div class="kpi-val num" id="k-custocad">—</div>
-      <div class="kpi-foot"><span class="delta" id="d-custocad">—</span> vs. período anterior</div>
+      <div class="kpi-label">Visitas ao perfil</div>
+      <div class="kpi-val num" id="k-perfil">—</div>
+      <div class="kpi-foot">pessoas que abriram o perfil</div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Visualizações do site</div>
-      <div class="kpi-val num" id="k-site">—</div>
-      <div class="kpi-foot"><span class="delta" id="d-site">—</span> vs. período anterior</div>
-    </div>
-  </div>
-
-  <!-- Métricas secundárias -->
-  <div class="mini">
-    <div><span>Custo por visualização</span><strong class="num" id="m-custosite">—</strong></div>
-    <div><span>Cliques no link</span><strong class="num" id="m-cliques">—</strong></div>
-    <div><span>Custo por clique</span><strong class="num" id="m-custoclique">—</strong></div>
-    <div><span>Conversas iniciadas</span><strong class="num" id="m-conversas">—</strong></div>
-    <div><span>CPM</span><strong class="num" id="m-cpm">—</strong></div>
-    <div><span>CTR</span><strong class="num" id="m-ctr">—</strong></div>
-    <div><span>Alcance</span><strong class="num" id="m-reach">—</strong></div>
-    <div><span>Impressões</span><strong class="num" id="m-impr">—</strong></div>
-  </div>
-
-  <!-- Instagram (orgânico) — só aparece quando há dados do IG -->
-  <div class="card" id="ig-card" style="margin-top:16px;display:none">
-    <div class="card-head">
-      <div class="card-title">Instagram — <span id="ig-user"></span></div>
-      <div class="card-title" id="ig-total"></div>
-    </div>
-    <div class="kpis" style="margin:0">
-      <div class="kpi">
-        <div class="kpi-label">Novos seguidores</div>
-        <div class="kpi-val num" id="ig-novos">—</div>
-        <div class="kpi-foot"><span class="delta" id="ig-d-novos">—</span> vs. período anterior</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Custo por seguidor</div>
-        <div class="kpi-val num" id="ig-custo">—</div>
-        <div class="kpi-foot">aproximação · investimento ÷ seguidores</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Visitas ao perfil</div>
-        <div class="kpi-val num" id="ig-perfil">—</div>
-        <div class="kpi-foot">no período</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Alcance orgânico</div>
-        <div class="kpi-val num" id="ig-reach">—</div>
-        <div class="kpi-foot">contas alcançadas</div>
-      </div>
-    </div>
-    <div style="font-size:12px;color:var(--faint);margin-top:14px;line-height:1.5">
-      Dados orgânicos do Instagram. O <b>custo por seguidor</b> é uma aproximação (investimento em anúncios ÷ novos seguidores do período). A <b>origem de cada seguidor</b> não é fornecida pela Meta — só aparece dentro do app do Instagram.
+      <div class="kpi-label">Pessoas alcançadas</div>
+      <div class="kpi-val num" id="k-reach">—</div>
+      <div class="kpi-foot"><span class="delta" id="d-reach">—</span> vs. período anterior</div>
     </div>
   </div>
 
@@ -288,22 +291,50 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
     <div class="dist" id="dist"></div>
   </div>
 
-  <!-- Sugestões -->
-  <div class="card">
-    <div class="card-title">O que merece atenção</div>
-    <ul class="tips" id="tips"></ul>
-  </div>
-
-  <!-- Gráfico -->
-  <div class="card">
-    <div class="card-title">Investimento e custo por cadastro, dia a dia</div>
+  <!-- Gráfico principal: o dinheiro está virando audiência? -->
+  <div class="card" id="card-chart1">
+    <div class="card-head">
+      <div class="card-title">Investimento e crescimento de seguidores</div>
+      <div class="chart-legend" id="chart1-note"></div>
+    </div>
     <div class="chart-box"><canvas id="chart"></canvas></div>
   </div>
 
-  <!-- Tabela com seletor de nível -->
-  <div class="card">
+  <!-- Quantas pessoas, e quantas vezes cada uma -->
+  <div class="card" id="card-chart2">
     <div class="card-head">
-      <div class="card-title">Ativos com investimento no período</div>
+      <div class="card-title">Pessoas alcançadas e exibições por dia</div>
+      <div class="chart-legend">quando as linhas se afastam, o mesmo público está vendo mais vezes</div>
+    </div>
+    <div class="chart-box"><canvas id="chart2"></canvas></div>
+  </div>
+
+  <!-- Detalhes técnicos — recolhido por padrão -->
+  <details class="tech">
+    <summary>
+      <span>Detalhes técnicos</span>
+      <span class="tech-hint">números de mídia e desempenho por campanha</span>
+    </summary>
+
+    <div class="tech-body">
+      <div class="mini">
+        <div><span>Cadastros</span><strong class="num" id="m-cad">—</strong></div>
+        <div><span>Custo por cadastro</span><strong class="num" id="m-custocad">—</strong></div>
+        <div><span>Visualizações do site</span><strong class="num" id="m-site">—</strong></div>
+        <div><span>Custo por visualização</span><strong class="num" id="m-custosite">—</strong></div>
+        <div><span>Cliques no link</span><strong class="num" id="m-cliques">—</strong></div>
+        <div><span>Custo por clique</span><strong class="num" id="m-custoclique">—</strong></div>
+        <div><span>Conversas iniciadas</span><strong class="num" id="m-conversas">—</strong></div>
+        <div><span>CPM</span><strong class="num" id="m-cpm">—</strong></div>
+        <div><span>CTR</span><strong class="num" id="m-ctr">—</strong></div>
+        <div><span>Impressões</span><strong class="num" id="m-impr">—</strong></div>
+        <div><span>Alcance orgânico</span><strong class="num" id="m-reachorg">—</strong></div>
+        <div><span>Custo por seguidor</span><strong class="num" id="m-custoseg">—</strong></div>
+      </div>
+
+      <div class="card-head" style="margin-top:22px">
+
+          <div class="card-title">Desempenho por campanha</div>
       <div class="levels" role="tablist" aria-label="Nível">
         <button class="lvl" role="tab" data-l="campanhas" aria-selected="true">Campanhas</button>
         <button class="lvl" role="tab" data-l="conjuntos">Conjuntos</button>
@@ -321,7 +352,15 @@ footer{margin-top:32px;font-size:12.5px;color:var(--faint);text-align:center}
         <tbody id="tbody"></tbody>
       </table>
     </div>
-  </div>
+      <div class="card-head" style="margin-top:26px">
+        <div class="card-title">Custo por mil (CPM) e frequência</div>
+        <div class="chart-legend">CPM subindo junto com frequência = criativo cansando</div>
+      </div>
+      <div class="chart-box" style="height:250px"><canvas id="chart3"></canvas></div>
+
+      <p class="tech-note">O <b>custo por seguidor</b> é uma aproximação: investimento total dividido pelos novos seguidores do período. A Meta não informa a origem de cada seguidor.</p>
+    </div>
+  </details>
 
   <footer>Mostrando apenas campanhas, conjuntos e anúncios ativos que tiveram investimento no período. Os números do dia corrente ainda estão consolidando no Meta e podem mudar nas próximas horas.</footer>
 </div>
@@ -341,15 +380,40 @@ function saude(c){
   if(alertas.length === 1 || c.cpm > 3 || c.freq > 5) return {n:'warn', label:'Monitorar'};
   return {n:'ok', label:'Saudável'};
 }
-const COR = {ok:'#2E7D5B', warn:'#B4740E', bad:'#C2453B', learn:'#7A8189'};
+const COR = {ok:'#22B06B', warn:'#EE7A22', bad:'#C0392F', learn:'#9E97AB'};
 const brl = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const int = v => Math.round(v||0).toLocaleString('pt-BR');
 const money = v => v==null ? '—' : brl(v);
 
+/* Nomes de campanha legíveis para a cliente.
+   [GA][CP01][RECONHECIMENTO][CASTANHAL] - [ALCANCE]  ->  Reconhecimento · Castanhal */
+const TAG_INTERNA = /^(GA|NOVA|TESTE|TURBINAR|CP[\d.]*|C\d+)$/i;
+
+/* GRITANDO EM CAIXA ALTA -> Só o começo maiúsculo */
+function capitalizar(txt){
+  const t = (txt || '').trim();
+  if(!t) return t;
+  const gritando = t === t.toUpperCase() && /\p{L}/u.test(t);
+  const base = gritando ? t.toLowerCase() : t;
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}
+
+function nomeLimpo(nome){
+  const bruto = (nome || '').replace(/\s+/g,' ').trim();
+  if(!bruto) return '—';
+  const livre = bruto.replace(/.*\]/,'').replace(/^[-–\s]+/,'').trim();
+  if(livre.length > 8) return capitalizar(livre);
+  const tags = (bruto.match(/\[([^\]]*)\]/g) || [])
+    .map(t => t.slice(1,-1).trim())
+    .filter(t => t && !TAG_INTERNA.test(t))
+    .map(capitalizar);
+  return tags.length ? tags.join(' · ') : capitalizar(bruto);
+}
+
 /* =======================================================================
    RENDERIZAÇÃO
    ======================================================================= */
-let chart = null;
+let chart = null, chart2 = null, chart3 = null;
 let DATA = null;          // {periods:{'7','30','mes'}, diario:[...], meta:{...}}
 let nivel = 'campanhas';  // campanhas | conjuntos | anuncios
 const ROTULO = {campanhas:'Campanha', conjuntos:'Conjunto', anuncios:'Anúncio'};
@@ -369,41 +433,67 @@ function setDelta(id, cur, prev, invert){
 }
 
 function renderKPIs(p){
-  const k = p.kpis, pv = p.prev || {};
-  document.getElementById('k-spend').textContent   = 'R$ ' + int(k.spend);
-  document.getElementById('k-cad').textContent     = int(k.cadastros);
-  document.getElementById('k-custocad').textContent= money(k.custoCadastro);
-  document.getElementById('k-site').textContent    = int(k.pageViews);
-  setDelta('d-spend',   k.spend,        pv.spend,        false);
-  setDelta('d-cad',     k.cadastros,    pv.cadastros,    false);
-  setDelta('d-custocad',k.custoCadastro,pv.custoCadastro,true);   // custo: cair é bom
-  setDelta('d-site',    k.pageViews,    pv.pageViews,    false);
+  const k = p.kpis, pv = p.prev || {}, ig = p.ig || {};
 
+  // Primários — o que a cliente quer saber
+  document.getElementById('k-spend').textContent  = 'R$ ' + int(k.spend);
+  document.getElementById('k-seg').textContent    = ig.novosSeguidores==null ? '—' : int(ig.novosSeguidores);
+  document.getElementById('k-perfil').textContent = ig.profileViews==null ? '—' : int(ig.profileViews);
+  document.getElementById('k-reach').textContent  = int(k.reach);
+  setDelta('d-spend', k.spend,            pv.spend,        false);
+  setDelta('d-seg',   ig.novosSeguidores, ig.prevNovos,    false);
+  setDelta('d-reach', k.reach,            pv.reach,        false);
+
+  // quebra entre quem passou a seguir e quem deixou de seguir
+  const fseg = document.getElementById('f-seg');
+  fseg.textContent = (ig.seguidoresGanhos != null && ig.seguidoresPerdidos != null)
+    ? int(ig.seguidoresGanhos) + ' seguiram · ' + int(ig.seguidoresPerdidos) + ' deixaram de seguir'
+    : '';
+
+  // Técnicos — dentro do bloco recolhível
+  document.getElementById('m-cad').textContent        = int(k.cadastros);
+  document.getElementById('m-custocad').textContent   = money(k.custoCadastro);
+  document.getElementById('m-site').textContent       = int(k.pageViews);
   document.getElementById('m-custosite').textContent  = money(k.custoPageView);
   document.getElementById('m-cliques').textContent    = int(k.linkClicks);
   document.getElementById('m-custoclique').textContent= money(k.custoClique);
   document.getElementById('m-conversas').textContent  = int(k.conversas);
   document.getElementById('m-cpm').textContent        = money(k.cpm);
   document.getElementById('m-ctr').textContent        = (k.ctr || 0).toFixed(2) + '%';
-  document.getElementById('m-reach').textContent      = int(k.reach);
   document.getElementById('m-impr').textContent       = int(k.impressions);
+  document.getElementById('m-reachorg').textContent   = ig.reachOrg==null ? '—' : int(ig.reachOrg);
+  document.getElementById('m-custoseg').textContent   = money(ig.custoSeguidor);
+
+  renderResumo(k, ig);
+}
+
+/* Frase de abertura: responde "como foi o período?" antes de qualquer número solto */
+function renderResumo(k, ig){
+  const partes = [];
+  if(ig.novosSeguidores) partes.push('<b>' + int(ig.novosSeguidores) + ' novos seguidores</b>');
+  if(k.reach)            partes.push('<b>' + int(k.reach) + ' pessoas alcançadas</b>');
+  if(ig.profileViews)    partes.push('<b>' + int(ig.profileViews) + ' visitas ao perfil</b>');
+
+  const el = document.getElementById('resumo');
+  if(!partes.length){ el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  let lista = partes[0];
+  if(partes.length === 2) lista = partes.join(' e ');
+  if(partes.length > 2)   lista = partes.slice(0,-1).join(', ') + ' e ' + partes[partes.length-1];
+
+  el.innerHTML = 'No período, <b>' + brl(k.spend) + '</b> em anúncios geraram ' + lista + '.';
 }
 
 function renderIG(p, meta){
-  const card = document.getElementById('ig-card'), ig = p.ig;
-  if(!ig || !(meta && meta.instagram)){ card.style.display = 'none'; return; }
-  card.style.display = '';
-  document.getElementById('ig-user').textContent  = meta.ig_username ? '@' + meta.ig_username : '';
-  document.getElementById('ig-total').textContent = meta.seguidores_total ? int(meta.seguidores_total) + ' seguidores' : '';
-  document.getElementById('ig-novos').textContent = ig.novosSeguidores==null ? '—' : int(ig.novosSeguidores);
-  setDelta('ig-d-novos', ig.novosSeguidores, ig.prevNovos, false);
-  document.getElementById('ig-custo').textContent = money(ig.custoSeguidor);
-  document.getElementById('ig-perfil').textContent= int(ig.profileViews);
-  document.getElementById('ig-reach').textContent = int(ig.reachOrg);
+  const el = document.getElementById('ig-line');
+  if(!meta || !meta.ig_username){ el.textContent = ''; return; }
+  const total = meta.seguidores_total ? ' · ' + int(meta.seguidores_total) + ' seguidores' : '';
+  el.textContent = '@' + meta.ig_username + total;
 }
 
 /* Cores por tipo de investimento */
-const TIPO_COR = {camp:'#0F6E56', imp:'#8A94A6'};
+const TIPO_COR = {camp:'#6B2E9E', imp:'#EE7A22'};
 
 function renderDist(lista, split){
   // Se não veio o split calculado (modo demo), deriva da própria lista.
@@ -430,37 +520,11 @@ function renderDist(lista, split){
   document.getElementById('dist').innerHTML = top.map(c=>{
     const cor = TIPO_COR[c.tipo] || TIPO_COR.camp;
     return `<div class="dist-row">
-      <div class="dist-name">${c.nome}${c.tipo==='imp'?'<span class="mini-tag">turbinado</span>':''}</div>
+      <div class="dist-name">${nomeLimpo(c.nome)}${c.tipo==='imp'?'<span class="mini-tag">turbinado</span>':''}</div>
       <div class="dist-val"><b>${brl(c.spend)}</b>${(c.spend/total*100).toFixed(0)}%</div>
       <div class="dist-track"><div class="dist-fill" style="width:${(c.spend/max*100).toFixed(1)}%;background:${cor}"></div></div>
     </div>`;
   }).join('');
-}
-
-function renderTips(lista){
-  const tips = [];
-  lista.forEach(c=>{
-    const s = saude(c), c_cad = c.cadastros ? c.spend/c.cadastros : null;
-    if(s.n === 'learn'){
-      tips.push({t:'ok', txt:`<b>${c.nome}</b> tem ${c.dias} dias no ar e ainda está aprendendo. Deixe rodar até completar 7 dias antes de mexer.`});
-    }
-    if(c.cpm > 5 && s.n !== 'learn'){
-      tips.push({t:'bad', txt:`<b>${c.nome}</b> está com CPM de ${brl(c.cpm)} — acima do limite de R$ 5. O criativo provavelmente cansou ou o público está estreito demais.`});
-    }
-    if(c.ctr < 0.8 && s.n !== 'learn'){
-      tips.push({t:'bad', txt:`<b>${c.nome}</b> tem CTR de ${c.ctr.toFixed(2)}% — as pessoas estão vendo e não clicando. Vale testar um criativo novo.`});
-    }
-    if(c_cad && c_cad > 50){
-      tips.push({t:'warn', txt:`<b>${c.nome}</b> está pagando ${brl(c_cad)} por cadastro. Vale revisar a oferta ou o público.`});
-    }
-    if(c.freq > 5 && c.cpm <= 3){
-      tips.push({t:'ok', txt:`<b>${c.nome}</b> tem frequência alta (${c.freq}), mas o CPM segue baixo. O criativo ainda está funcionando — não pause só pela frequência.`});
-    }
-  });
-  if(!tips.length) tips.push({t:'ok', txt:'Nenhum alerta nas campanhas com investimento neste período. CPM, CTR e custos dentro das réguas.'});
-  document.getElementById('tips').innerHTML = tips.slice(0,6).map(t=>
-    `<li class="tip ${t.t}"><i>${t.t==='ok'?'✓':'!'}</i><span>${t.txt}</span></li>`
-  ).join('');
 }
 
 let TABELA_ATUAL = [];
@@ -480,7 +544,7 @@ function renderTable(){
     return `<tr data-idx="${i}">
       <td><div class="camp">
         <span class="pulse" style="background:${COR[s.n]}"></span>
-        <span><span class="camp-name">${c.nome}</span>${s.n==='learn'?'<span class="tag">novo</span>':''}${c.tipo==='imp'?'<span class="tag turbo">turbinado</span>':''}
+        <span><span class="camp-name">${nomeLimpo(c.nome)}</span>${s.n==='learn'?'<span class="tag">novo</span>':''}${c.tipo==='imp'?'<span class="tag turbo">turbinado</span>':''}
         <div class="camp-sub">${c.sub || ''}</div></span>
       </div></td>
       <td class="num">${brl(c.spend)}</td>
@@ -501,42 +565,147 @@ function sliceSerie(periodKey){
   return serie.filter(d => (d.date||'') >= p.since && (d.date||'') <= p.until);
 }
 
+/* ===== Gráficos =====================================================
+   1. Investimento (barras) + seguidores acumulados (linha)
+   2. Alcance x impressões por dia
+   3. CPM x frequência (bloco técnico)
+   ==================================================================== */
+const EIXO   = {color:'#9E97AB', font:{family:'Space Grotesk', size:11}};
+const GRADE  = {color:'#EFEAF5'};
+const LEGENDA = {position:'bottom', align:'start',
+  labels:{boxWidth:9, boxHeight:9, usePointStyle:true, pointStyle:'circle',
+    padding:18, font:{family:'Instrument Sans', size:12.5}, color:'#7B7488'}};
+const TOOLTIP_BASE = {backgroundColor:'#1B1526', padding:11, cornerRadius:8, displayColors:false,
+  titleFont:{family:'Instrument Sans', size:12}, bodyFont:{family:'Space Grotesk', size:13}};
+
+function baseOpts(extra){
+  return Object.assign({
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index', intersect:false},
+    plugins:{legend:LEGENDA, tooltip:TOOLTIP_BASE}
+  }, extra || {});
+}
+
+/* Acumula o crescimento diário; ignora a cauda ainda não consolidada pelo IG */
+function acumularSeguidores(serie){
+  let visto = false;
+  for(let i = serie.length - 1; i >= 0 && !visto; i--){
+    if(serie[i].seguidores) visto = true;
+  }
+  if(!visto) return null;
+
+  // último dia com dado real: depois dele o Instagram ainda está consolidando
+  let ultimo = -1;
+  serie.forEach((d,i)=>{ if(d.seguidores != null && d.seguidores !== 0) ultimo = i; });
+
+  let soma = 0;
+  return serie.map((d,i)=>{
+    if(i > ultimo) return null;
+    soma += (d.seguidores || 0);
+    return soma;
+  });
+}
+
+function mostrarCard(id, mostrar){
+  const el = document.getElementById(id);
+  if(el) el.style.display = mostrar ? '' : 'none';
+}
+
 function renderChart(periodKey){
   const serie = sliceSerie(periodKey);
-  const labels = serie.map(d => d.date ? 'D' + parseInt(d.date.slice(8,10),10) : '');
+  const labels = serie.map(d => d.date ? d.date.slice(8,10) + '/' + d.date.slice(5,7) : '');
+  const temCampo = c => serie.some(d => d[c] != null);
+
+  /* ---------- 1. investimento + seguidores acumulados ---------- */
+  const acumulado = acumularSeguidores(serie);
+  const nota = document.getElementById('chart1-note');
   if(chart) chart.destroy();
+
+  const datasets1 = [
+    {type:'bar', label:'Investimento', data:serie.map(d=>d.spend), yAxisID:'y',
+     backgroundColor:'#EADDF6', hoverBackgroundColor:'#D6BEEE', borderRadius:5, barPercentage:.72, order:2}
+  ];
+  if(acumulado){
+    datasets1.push({type:'line', label:'Seguidores acumulados', data:acumulado, yAxisID:'y2',
+      borderColor:'#22B06B', backgroundColor:'#22B06B', borderWidth:2.5, tension:.3,
+      pointRadius:0, pointHoverRadius:4, spanGaps:false, order:1});
+    nota.textContent = 'o Instagram leva ~48h para fechar os seguidores do dia';
+  } else {
+    nota.textContent = 'seguidores por dia ainda não coletados';
+  }
+
   chart = new Chart(document.getElementById('chart'), {
-    data:{
-      labels,
-      datasets:[
-        {type:'bar', label:'Investimento', data:serie.map(d=>d.spend), yAxisID:'y',
-         backgroundColor:'#E3F1EC', hoverBackgroundColor:'#C9E3D9', borderRadius:5, barPercentage:.72},
-        {type:'line', label:'Custo por cadastro', data:serie.map(d=>d.custoCadastro), yAxisID:'y2',
-         borderColor:'#0F6E56', backgroundColor:'#0F6E56', borderWidth:2, tension:.35,
-         pointRadius:0, pointHoverRadius:4, spanGaps:true}
-      ]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      interaction:{mode:'index', intersect:false},
-      plugins:{
-        legend:{position:'bottom', align:'start',
-          labels:{boxWidth:9, boxHeight:9, usePointStyle:true, pointStyle:'circle',
-            padding:18, font:{family:'Instrument Sans', size:12.5}, color:'#7A8189'}},
-        tooltip:{backgroundColor:'#16191C', padding:11, cornerRadius:8, displayColors:false,
-          titleFont:{family:'Instrument Sans', size:12}, bodyFont:{family:'Space Grotesk', size:13},
-          callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y==null?'—':brl(c.parsed.y)}`}}
-      },
+    data:{labels, datasets:datasets1},
+    options: baseOpts({
+      plugins:{legend:LEGENDA, tooltip:Object.assign({}, TOOLTIP_BASE, {callbacks:{
+        label:c => c.dataset.yAxisID === 'y'
+          ? 'Investimento: ' + (c.parsed.y==null?'—':brl(c.parsed.y))
+          : 'Seguidores acumulados: ' + (c.parsed.y==null?'—':'+'+int(c.parsed.y))
+      }})},
       scales:{
-        x:{grid:{display:false}, border:{display:false},
-           ticks:{color:'#9CA3A0', font:{family:'Space Grotesk', size:11}, maxTicksLimit:10}},
-        y:{position:'left', grid:{color:'#EEF0EF'}, border:{display:false},
-           ticks:{color:'#9CA3A0', font:{family:'Space Grotesk', size:11}, callback:v=>'R$'+v}},
-        y2:{position:'right', grid:{display:false}, border:{display:false},
-            ticks:{color:'#0F6E56', font:{family:'Space Grotesk', size:11}, callback:v=>'R$'+v}}
+        x:{grid:{display:false}, border:{display:false}, ticks:Object.assign({maxTicksLimit:10}, EIXO)},
+        y:{position:'left', grid:GRADE, border:{display:false},
+           ticks:Object.assign({callback:v=>'R$'+v}, EIXO)},
+        y2:{position:'right', grid:{display:false}, border:{display:false}, beginAtZero:true,
+            ticks:Object.assign({callback:v=>'+'+int(v)}, EIXO, {color:'#22B06B'})}
       }
-    }
+    })
   });
+
+  /* ---------- 2. alcance x impressões ---------- */
+  const tem2 = temCampo('reach') || temCampo('impressions');
+  mostrarCard('card-chart2', tem2);
+  if(chart2) chart2.destroy();
+  if(tem2){
+    chart2 = new Chart(document.getElementById('chart2'), {
+      data:{labels, datasets:[
+        {type:'line', label:'Exibições', data:serie.map(d=>d.impressions), fill:true,
+         borderColor:'#C9A6E4', backgroundColor:'rgba(201,166,228,.22)', borderWidth:2,
+         tension:.3, pointRadius:0, pointHoverRadius:4, spanGaps:true},
+        {type:'line', label:'Pessoas alcançadas', data:serie.map(d=>d.reach), fill:true,
+         borderColor:'#6B2E9E', backgroundColor:'rgba(107,46,158,.14)', borderWidth:2.5,
+         tension:.3, pointRadius:0, pointHoverRadius:4, spanGaps:true}
+      ]},
+      options: baseOpts({
+        plugins:{legend:LEGENDA, tooltip:Object.assign({}, TOOLTIP_BASE, {callbacks:{
+          label:c => c.dataset.label + ': ' + (c.parsed.y==null?'—':int(c.parsed.y))}})},
+        scales:{
+          x:{grid:{display:false}, border:{display:false}, ticks:Object.assign({maxTicksLimit:10}, EIXO)},
+          y:{grid:GRADE, border:{display:false}, beginAtZero:true,
+             ticks:Object.assign({callback:v=>int(v)}, EIXO)}
+        }
+      })
+    });
+  }
+
+  /* ---------- 3. CPM x frequência (técnico) ---------- */
+  const tem3 = temCampo('cpm') || temCampo('freq');
+  if(chart3) chart3.destroy();
+  if(tem3){
+    chart3 = new Chart(document.getElementById('chart3'), {
+      data:{labels, datasets:[
+        {type:'line', label:'CPM', data:serie.map(d=>d.cpm), yAxisID:'y',
+         borderColor:'#EE7A22', backgroundColor:'#EE7A22', borderWidth:2.5, tension:.3,
+         pointRadius:0, pointHoverRadius:4, spanGaps:true},
+        {type:'line', label:'Frequência', data:serie.map(d=>d.freq), yAxisID:'y2',
+         borderColor:'#9E97AB', backgroundColor:'#9E97AB', borderWidth:2, borderDash:[5,4],
+         tension:.3, pointRadius:0, pointHoverRadius:4, spanGaps:true}
+      ]},
+      options: baseOpts({
+        plugins:{legend:LEGENDA, tooltip:Object.assign({}, TOOLTIP_BASE, {callbacks:{
+          label:c => c.dataset.yAxisID === 'y'
+            ? 'CPM: ' + (c.parsed.y==null?'—':brl(c.parsed.y))
+            : 'Frequência: ' + (c.parsed.y==null?'—':c.parsed.y.toFixed(2))}})},
+        scales:{
+          x:{grid:{display:false}, border:{display:false}, ticks:Object.assign({maxTicksLimit:10}, EIXO)},
+          y:{position:'left', grid:GRADE, border:{display:false},
+             ticks:Object.assign({callback:v=>'R$'+v}, EIXO, {color:'#EE7A22'})},
+          y2:{position:'right', grid:{display:false}, border:{display:false}, beginAtZero:true,
+              ticks:Object.assign({callback:v=>v.toFixed(1)}, EIXO)}
+        }
+      })
+    });
+  }
 }
 
 function render(periodKey){
@@ -544,8 +713,7 @@ function render(periodKey){
   const campanhas = (p.niveis && p.niveis.campanhas) || [];
   renderKPIs(p);
   renderIG(p, DATA.meta);
-  renderDist(campanhas, p.split);   // distribuição e sugestões sempre a nível de campanha
-  renderTips(campanhas);
+  renderDist(campanhas, p.split);   // distribuição sempre a nível de campanha
   renderTable();            // tabela segue o nível selecionado
   renderChart(periodKey);
 }
@@ -723,10 +891,13 @@ async function boot(){
    DADOS FICTÍCIOS (modo demo) — só quando não há JSON real ainda
    ======================================================================= */
 const DEMO_CAMPANHAS = [
-  {nome:'[LEADS] Santa Isabel', sub:'Cadastros', tipo:'camp',    spend:1980, cadastros:38, conversas:20, linkClicks:820, custoClique:2.41, custoCadastro:52, cpm:3.20, ctr:1.62, freq:2.1, dias:24},
-  {nome:'[Tráfego] Página E-book', sub:'Tráfego', tipo:'camp',   spend:1140, cadastros:22, conversas:12, linkClicks:640, custoClique:1.78, custoCadastro:51, cpm:4.40, ctr:1.48, freq:4.6, dias:31},
-  {nome:'Post do Instagram: Eu penso diferente…', sub:'Tráfego', tipo:'imp', spend:760, cadastros:9, conversas:5, linkClicks:300, custoClique:2.53, custoCadastro:84, cpm:5.90, ctr:0.71, freq:1.8, dias:18},
-  {nome:'[Reconhecimento] Institucional', sub:'Reconhecimento', tipo:'camp', spend:400, cadastros:2, conversas:1, linkClicks:120, custoClique:3.33, custoCadastro:200, cpm:6.30, ctr:0.64, freq:1.2, dias:4}
+  {nome:'[GA][CP01][RECONHECIMENTO][CASTANHAL] - [ALCANCE]', sub:'Alcance', tipo:'camp', spend:9575, cadastros:2, conversas:14, linkClicks:3206, custoClique:2.99, custoCadastro:4787, cpm:4.10, ctr:0.27, freq:2.1, dias:24},
+  {nome:'[GA][CP01.3][VISUALIZAÇÃO][CASTANHAL E REGIÃO] - [ENGAJAMENTO]', sub:'Engajamento', tipo:'camp', spend:3929, cadastros:0, conversas:2, linkClicks:640, custoClique:6.14, custoCadastro:null, cpm:9.51, ctr:1.48, freq:4.6, dias:31},
+  {nome:'[GA][CP01.2][SEGUIDORES][CASTANHAL E REGIÃO] - [TRÁFEGO]', sub:'Tráfego', tipo:'camp', spend:1452, cadastros:0, conversas:8, linkClicks:520, custoClique:2.79, custoCadastro:null, cpm:10.76, ctr:1.12, freq:2.8, dias:19},
+  {nome:'cpw Engajamento', sub:'Engajamento', tipo:'imp', spend:1392, cadastros:0, conversas:22, linkClicks:119, custoClique:11.70, custoCadastro:null, cpm:5.90, ctr:0.71, freq:1.8, dias:18},
+  {nome:'cpw Tráfego Instagram', sub:'Tráfego', tipo:'imp', spend:764, cadastros:0, conversas:3, linkClicks:210, custoClique:3.64, custoCadastro:null, cpm:4.30, ctr:0.94, freq:1.4, dias:12},
+  {nome:'[GA][CP11][ATRAÇÃO][SEGUIDORES][CASTANHAL] - TBT DE UMA VERSÃO MINHA QUE VOCÊ NÃO CONHECE', sub:'Visitas ao perfil', tipo:'camp', spend:528, cadastros:0, conversas:8, linkClicks:149, custoClique:3.54, custoCadastro:null, cpm:3.10, ctr:1.62, freq:2.1, dias:6},
+  {nome:'cpw Reconhecimento carreata 09/09', sub:'Alcance', tipo:'imp', spend:350, cadastros:0, conversas:1, linkClicks:40, custoClique:8.75, custoCadastro:null, cpm:6.30, ctr:0.64, freq:1.2, dias:4}
 ];
 function demoDiario(){
   const serie = [], hoje = new Date();
@@ -734,9 +905,16 @@ function demoDiario(){
     const dt = new Date(hoje); dt.setDate(dt.getDate()-k); const i = 89-k;
     const spend = +(110 + Math.sin(i/3)*38 + (i%7)*4).toFixed(2);
     const cad = Math.max(1, Math.round(spend/55));
+    const cpm = +(3.2 + Math.sin(i/9)*0.9 + i*0.012).toFixed(2);
+    const impressions = Math.round(spend/cpm*1000);
+    const freq = +(1.35 + Math.sin(i/11)*0.25 + i*0.004).toFixed(2);
+    const reach = Math.round(impressions/freq);
+    // os 2 últimos dias vêm zerados de propósito: é o atraso real do Instagram
+    const seg = k <= 1 ? 0 : Math.max(0, Math.round(spend/4.4 + Math.sin(i/5)*9));
     serie.push({date: dt.toISOString().slice(0,10), spend, cadastros:cad,
       linkClicks:Math.round(spend*0.43), pageViews:Math.round(spend*0.9),
-      custoCadastro:+(spend/cad).toFixed(2)});
+      custoCadastro:+(spend/cad).toFixed(2),
+      reach, impressions, freq, cpm, seguidores:seg});
   }
   return serie;
 }
@@ -763,11 +941,15 @@ function construirDemo(){
     const prevSlice = serie.filter(d=> d.date>=sPrev && d.date < s);
     const k = agrega(slice), pv = agrega(prevSlice);
     return {label, since:s, until:u, kpis:k,
-      prev:{spend:pv.spend,cadastros:pv.cadastros,custoCadastro:pv.custoCadastro,pageViews:pv.pageViews,custoPageView:pv.custoPageView,linkClicks:pv.linkClicks,conversas:pv.conversas},
+      prev:{spend:pv.spend,cadastros:pv.cadastros,custoCadastro:pv.custoCadastro,pageViews:pv.pageViews,custoPageView:pv.custoPageView,linkClicks:pv.linkClicks,conversas:pv.conversas,reach:pv.reach},
+      ig:{novosSeguidores:Math.round(k.spend/4.58), prevNovos:Math.round(pv.spend/5.10),
+          seguidoresGanhos:Math.round(k.spend/3.55), seguidoresPerdidos:Math.round(k.spend/3.55)-Math.round(k.spend/4.58),
+          profileViews:Math.round(k.spend/103), reachOrg:Math.round(k.spend*1.56),
+          custoSeguidor:4.58},
       niveis:{campanhas:camp, conjuntos:camp.map(c=>({...c,sub:c.nome})), anuncios:camp.map(c=>({...c,sub:c.nome}))}};
   }
   const t = iso(hoje), y = shift(-1), mes1 = iso(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
-  return {meta:{updated_label:'dados de exemplo'}, diario:serie, periods:{
+  return {meta:{updated_label:'dados de exemplo', instagram:true, ig_username:'magalhaes.fernanda_', seguidores_total:34799}, diario:serie, periods:{
     'hoje':  per('Hoje', t, t, esc(0.05)),
     'ontem': per('Ontem', y, y, esc(0.05)),
     '7d':    per('Últimos 7 dias', shift(-7), y, esc(0.25)),
