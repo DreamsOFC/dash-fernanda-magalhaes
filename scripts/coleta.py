@@ -485,8 +485,35 @@ def serie_diaria():
             "linkClicks": m["linkClicks"],
             "pageViews": m["pageViews"],
             "custoCadastro": custo(m["spend"], m["cadastros"]),
+            # entrega — alimentam os gráficos de alcance, frequência e CPM
+            "reach": m["reach"],
+            "impressions": m["impressions"],
+            "freq": m["freq"],
+            "cpm": m["cpm"],
         })
     serie.sort(key=lambda x: x["date"] or "")
+    return serie
+
+
+def juntar_seguidores(serie, ig_id):
+    """Acrescenta o crescimento diário de seguidores à série da conta.
+
+    Usa follower_count porque follows_and_unfollows não aceita série diária.
+    Os 2 últimos dias costumam vir zerados (consolidação do Instagram); o
+    gráfico trata isso ignorando pontos nulos no fim.
+    """
+    if not serie or not ig_id:
+        return serie
+    try:
+        ini = datetime.strptime(serie[0]["date"], "%Y-%m-%d").date()
+        fim = datetime.strptime(serie[-1]["date"], "%Y-%m-%d").date()
+    except (ValueError, KeyError, TypeError):
+        return serie
+    por_dia = ig_serie_follower_count(ig_id, ini, fim)
+    if not por_dia:
+        return serie
+    for d in serie:
+        d["seguidores"] = por_dia.get(d.get("date"))
     return serie
 
 
@@ -509,21 +536,81 @@ def instagram_conta():
     return None, None, 0
 
 
-def ig_novos_seguidores(ig_id, since_d, until_d):
-    """Soma de novos seguidores no intervalo. A API do IG exige janela ABAIXO de
-    30 dias por chamada, então quebramos em pedaços de até 28 dias."""
-    total = 0
+def ig_follows_unfollows(ig_id, since_d, until_d):
+    """Seguidores ganhos e perdidos no intervalo, via follows_and_unfollows.
+
+    Esta métrica é agregada (total_value) e NÃO aceita série diária, mas em
+    compensação responde para janelas recentes que o follower_count ainda
+    devolve zeradas. A quebra follow_type separa quem passou a seguir
+    (FOLLOWER) de quem deixou de seguir (NON_FOLLOWER).
+    Retorna (ganhos, perdas) ou None se a métrica não responder.
+    """
+    ganhos = perdas = 0
+    achou = False
     cur = since_d
     while cur <= until_d:
-        fim = min(cur + timedelta(days=27), until_d)   # span de até 28 dias (< 30)
-        res = graph_get(f"{ig_id}/insights", {
-            "metric": "follower_count", "period": "day",
-            "since": ts_sp(cur), "until": ts_sp(fim + timedelta(days=1))})
-        if res:
-            for v in res[0].get("values", []):
-                total += int(v.get("value") or 0)
+        fim = min(cur + timedelta(days=27), until_d)   # janela < 30 dias
+        try:
+            res = graph_get(f"{ig_id}/insights", {
+                "metric": "follows_and_unfollows", "period": "day",
+                "metric_type": "total_value", "breakdown": "follow_type",
+                "since": ts_sp(cur), "until": ts_sp(fim + timedelta(days=1))})
+        except MetaError as e:
+            print(f"  (follows_and_unfollows indisponível: {str(e)[:120]})", file=sys.stderr)
+            return None
+        for m in res:
+            quebras = ((m.get("total_value") or {}).get("breakdowns") or [])
+            for q in quebras:
+                for linha in q.get("results", []):
+                    dim = (linha.get("dimension_values") or [None])[0]
+                    val = int(linha.get("value") or 0)
+                    if dim == "FOLLOWER":
+                        ganhos += val; achou = True
+                    elif dim == "NON_FOLLOWER":
+                        perdas += val; achou = True
         cur = fim + timedelta(days=1)
-    return total
+    return (ganhos, perdas) if achou else None
+
+
+def ig_serie_follower_count(ig_id, since_d, until_d):
+    """Série diária de crescimento líquido de seguidores ({data: saldo}).
+
+    O follower_count leva ~48h para consolidar, então os últimos dias podem vir
+    zerados — é esperado. O end_time marca o FIM da janela de 24h, por isso o
+    valor é atribuído ao dia anterior.
+    """
+    saida = {}
+    cur = since_d
+    while cur <= until_d:
+        fim = min(cur + timedelta(days=27), until_d)
+        try:
+            res = graph_get(f"{ig_id}/insights", {
+                "metric": "follower_count", "period": "day",
+                "since": ts_sp(cur), "until": ts_sp(fim + timedelta(days=1))})
+        except MetaError as e:
+            print(f"  (follower_count indisponível: {str(e)[:120]})", file=sys.stderr)
+            return saida
+        for m in res:
+            for v in m.get("values", []):
+                fim_txt = (v.get("end_time") or "")[:10]
+                if not fim_txt:
+                    continue
+                try:
+                    dia = (datetime.strptime(fim_txt, "%Y-%m-%d").date() - timedelta(days=1))
+                except ValueError:
+                    continue
+                saida[dia.isoformat()] = int(v.get("value") or 0)
+        cur = fim + timedelta(days=1)
+    return saida
+
+
+def ig_novos_seguidores(ig_id, since_d, until_d):
+    """Crescimento líquido no intervalo. Tenta a métrica nova primeiro."""
+    par = ig_follows_unfollows(ig_id, since_d, until_d)
+    if par is not None:
+        return par[0] - par[1]
+    # fallback: soma da série diária (sofre o atraso de ~48h)
+    return sum(ig_serie_follower_count(ig_id, since_d, until_d).values())
 
 
 def ig_totais(ig_id, since_d, until_d):
@@ -545,17 +632,25 @@ def ig_totais(ig_id, since_d, until_d):
 
 
 def coletar_instagram(ig_id, pdef, spend_periodo):
-    def novos(since_d, until_d):
+    def detalhe(since_d, until_d):
+        """(saldo, ganhos, perdas) — ganhos/perdas podem vir None no fallback."""
         try:
-            return ig_novos_seguidores(ig_id, since_d, until_d)
+            par = ig_follows_unfollows(ig_id, since_d, until_d)
+            if par is not None:
+                return par[0] - par[1], par[0], par[1]
+            soma = sum(ig_serie_follower_count(ig_id, since_d, until_d).values())
+            return soma, None, None
         except MetaError as e:
-            print(f"  (follower_count indisponível: {str(e)[:140]})", file=sys.stderr)
-            return None
-    n = novos(pdef["since"], pdef["until"])
-    prev = novos(pdef["prev_since"], pdef["prev_until"])
+            print(f"  (seguidores indisponíveis: {str(e)[:140]})", file=sys.stderr)
+            return None, None, None
+
+    n, ganhos, perdas = detalhe(pdef["since"], pdef["until"])
+    prev, _, _ = detalhe(pdef["prev_since"], pdef["prev_until"])
     t = ig_totais(ig_id, pdef["since"], pdef["until"])
     return {
         "novosSeguidores": n,
+        "seguidoresGanhos": ganhos,
+        "seguidoresPerdidos": perdas,
         "prevNovos": prev,
         "custoSeguidor": custo(spend_periodo, n) if n else None,
         "profileViews": t["profileViews"],
@@ -683,6 +778,12 @@ def main():
     print(f"  série diária ({DIAS_SERIE} dias) ...")
     try:
         diario = serie_diaria()
+        if ig_id:
+            print("  seguidores por dia ...")
+            try:
+                diario = juntar_seguidores(diario, ig_id)
+            except MetaError as e:
+                print(f"  (seguidores por dia indisponíveis: {str(e)[:120]})", file=sys.stderr)
     except MetaError as e:
         print(f"  série diária FALHOU: {str(e)[:160]}", file=sys.stderr)
         diario = old_diario if old_diario else []
